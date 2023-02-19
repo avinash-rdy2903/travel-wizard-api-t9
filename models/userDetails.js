@@ -7,11 +7,11 @@ var userSchema = new mongoose.Schema({
     },
     phone:{
         type: String,
-        unique: true,
-        partialFilterExpression: {houseName: {$type: "string"}}
+        sparse:true
     },
     fn:{type:String, required:true},
     ln:String,
+    verified:{type:Boolean, required:true},
     credId:{
 		type: mongoose.Schema.Types.ObjectId,
 		ref:'Credentials'
