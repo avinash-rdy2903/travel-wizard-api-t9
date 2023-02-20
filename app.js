@@ -6,11 +6,12 @@ const express = require('express'),
      localStrategy = require('passport-local')
      googleStrategy = require('passport-google-oauth20').Strategy;
      flash = require('flash'),
-     User = require('./models/userDetails'),
-     Credentials = require('./models/credentials'),
      jwt = require('jsonwebtoken');
      nodeMailer = require('nodemailer');
 
+const User = require('./models/userDetails'),
+    Credentials = require('./models/credentials'),
+    Otp = require('./models/otp.js');
 const transporter = nodeMailer.createTransport({
     service:'Gmail',
     auth:{
@@ -49,7 +50,8 @@ passport.use(new googleStrategy({
     let user = await User.findOne({email: googleUser.email});
     if(user==null) {
         user = await User.create({email:googleUser.email,fn:googleUser.given_name,ln:googleUser.family_name,verified:googleUser.email_verified});
-    }    
+    }
+    await user.save();    
     return done(null, profile);
 }
 ));
@@ -73,7 +75,7 @@ app.post('/login',passport.authenticate('local',{
 }))
 app.get('/login/:action',(req,res)=>{
     if(req.params.action==='failure'){
-        res.json({status:401,redirect:'/'})
+        res.json({status:401,redirect:'/login',message:"Auth failed"})
     }
     let username = req.body.username;
     if(req.user.provider==='google'){
@@ -117,7 +119,7 @@ app.get('/verify/email/:id/:token',async (req,res)=>{
             else{
                 user.verified= true;
                 await user.save();
-                 res.redirect('/index');
+                res.json({status: 200, message:"Email Verified"});
             }
         })
     }catch(err){
@@ -154,7 +156,7 @@ app.post('/register',async (req,res)=>{
         let info = await transporter.sendMail(mailOptions);
         await user.save();
         passport.authenticate('local')(req, res, ()=>{
-            res.redirect('/index')
+            res.json({status:200,redirect:'/',message:"user created"})
         });
     }catch(err){
         console.log(err);
@@ -170,6 +172,52 @@ app.post('/register',async (req,res)=>{
             }
         });
         res.redirect('/register');
+    }
+})
+app.post('/otp/verify',async (req,res)=>{
+    try{
+        console.log(req.body);
+        const otp = await Otp.findOne({otp:req.body.otp});
+        if(otp==null){
+            res.json({status:400,message:"Invalid Otp"});
+        }
+        const user = await User.findOne({email:otp.email});
+        const cred = await Credentials.findById(user.credId);
+        let username = cred.username;
+        await Credentials.remove({_id:cred.id});
+        const newCred = await Credentials.register(new Credentials({username:username}),req.body.password);
+        user.credId = newCred.id;
+        await user.save();
+        res.json({status:200,redirect:'/',message:'Password reset complete'});
+    }catch(err){
+        res.json({status:400,message:err.message});
+    }
+})
+app.post('/otp/email',async (req,res)=>{
+    try{
+        const user = await User.findOne({ email: req.body.email});
+        if(user==null){
+            res.json({status:401,message:"Invalid email/User not found"});
+        }
+        const otpGen = Math.floor(1000 + Math.random() * 9000);
+        const mailOptions = {
+            from: process.env.ADMIN_EMAIL,
+            to: user.email,
+            subject: 'Travel Wizard OTP',
+            html: `<h3>Hello ${user.ln}</h3><div> Please use the OTP:${otpGen} to reset password.</div><div>Thank you for joining Travel Wizard</div>`
+        };
+        let info = await transporter.sendMail(mailOptions);
+        let otp = await Otp.findOne({ email:req.body.email});
+        if(otp==null){
+            otp = await Otp.create({ email:req.body.email});
+        }
+        otp.otp = otpGen;
+        user.otpId = otp.id;
+        await user.save();
+        await otp.save();
+        res.json({status:200,message:"Otp has been delivered"});
+    }catch(err){ 
+        res.json({status:400,message:err.message});
     }
 })
 app.listen(PORT, () => {
