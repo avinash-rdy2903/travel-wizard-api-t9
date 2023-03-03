@@ -3,8 +3,9 @@ const express = require('express'),
      mongoose = require('mongoose'),
      cors = require('cors'),
      passport = require('passport'),
-     localStrategy = require('passport-local')
-     googleStrategy = require('passport-google-oauth20').Strategy;
+     localStrategy = require('passport-local'),
+     googleStrategy = require('passport-google-oauth20').Strategy,
+     facebookStrategy = require('passport-facebook').Strategy,
      flash = require('flash'),
      jwt = require('jsonwebtoken');
      nodeMailer = require('nodemailer');
@@ -42,7 +43,7 @@ passport.use(new localStrategy(Credentials.authenticate()));
 passport.use(new googleStrategy({
     clientID:process.env.GOOGLE_CLIENT_ID,
     clientSecret:process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://localhost:8080/auth/google/callback",
+    callbackURL: "/auth/google/callback",
     passReqToCallback  : true
 },async (request, accessToken, refreshToken, profile, done) => {
     console.log(profile);
@@ -55,6 +56,15 @@ passport.use(new googleStrategy({
     return done(null, profile);
 }
 ));
+passport.use(new facebookStrategy({
+    clientID: process.env.FACEBOOK_CLIENT_ID,
+    clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+    callbackURL : "/auth/facebook/callback",
+    passReqToCallback : true
+},async (request, accessToken,) => {
+    console.log(profile);
+}
+))
 passport.serializeUser(function(user, done) {
     done(null, user);
   });
@@ -69,7 +79,7 @@ app.use(express.urlencoded());
 app.get('/', (req, res) => {
     res.send('<div><a href=/login>Login</a></div><a href=/register>register</a>');
 })
-app.post('/login',passport.authenticate('local',{
+app.post('/auth/local',passport.authenticate('local',{
     failureRedirect:'/login/failure',
     successRedirect: '/login/success'
 }))
@@ -91,6 +101,15 @@ app.get('/auth/google',passport.authenticate('google', {
     scope:
         ['email', 'profile']
 }));
+app.get('/auth/facebook',passport.authenticate('facebook',{
+    scope: ['email','profile']
+}))
+app.get('/auth/facebook/callback',
+    passport.authenticate('facebook',{
+        failureRedirect: '/login/failure',
+        successRedirect: '/login/success'
+    })
+)
 app.get('/auth/google/callback',
     passport.authenticate('google', {
         failureRedirect: '/login/failure',
