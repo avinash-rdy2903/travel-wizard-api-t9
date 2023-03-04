@@ -8,5 +8,5 @@ const Hotel = new mongoose.Schema({
             type:mongoose.Schema.Types.ObjectId,
             ref:'room'
     }],// refers to another room associated with the hotel
-    availability:Number //total avilable rooms count 
 })
+module.exports=mongoose.model("Hotel",Hotel);

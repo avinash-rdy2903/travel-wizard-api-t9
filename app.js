@@ -87,7 +87,7 @@ app.get('/login/:action',(req,res)=>{
     if(req.params.action==='failure'){
         res.json({status:401,redirect:'/login',message:"Auth failed"})
     }
-    let username = req.body.username;
+    let username = req.user.username;
     if(req.user.provider==='google'){
         username = req.user._json.given_name;
     }
@@ -239,6 +239,24 @@ app.post('/otp/email',async (req,res)=>{
         res.json({status:400,message:err.message});
     }
 })
+app.get("/destination/:place",async (req,res) => {
+
+})
+app.post("/hotels",async (req,res) => {
+    const place = req.body.place,
+        start = req.body.fromDate,
+        end = req.body.toDate;
+    hotelData = []
+    hotels = await Hotel.find({
+        '_id':{ $in:await Place.find({name:place}).hotelId }
+    })
+    for(var hotel in hotels){
+        count = 0;
+        for(var roomId in hotel.roomId){
+
+        }
+    }
+})
 app.listen(PORT, () => {
     console.log('listening on port ' + PORT);
-})
+});

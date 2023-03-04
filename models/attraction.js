@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const attraction = new mongoose.Schema({
+const Attraction = new mongoose.Schema({
     address : {
         type : String,
         required : true,
@@ -9,3 +9,4 @@ const attraction = new mongoose.Schema({
     description:String,
     image:String
 })
+module.exports = mongoose.model('Attraction',Attraction)

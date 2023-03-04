@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const Destination = new mongoose.Schema({
+const Place = new mongoose.Schema({
     name : {
         type : String,
         required : true,
@@ -10,5 +10,12 @@ const Destination = new mongoose.Schema({
             type : mongoose.Schema.Types.ObjectId,
             ref:"attraction"
         }
+    ],
+    hotelId:[
+        {
+            type : mongoose.Schema.Types.ObjectId,
+            ref:'hotel'
+        }
     ]
 })
+module.exports = mongoose.model("place",Place)
