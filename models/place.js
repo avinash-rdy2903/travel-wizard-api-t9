@@ -5,13 +5,13 @@ const Place = new mongoose.Schema({
         required : true,
         unique : true
     },
-    attractionIds :[
+    attractions :[
         {
             type : mongoose.Schema.Types.ObjectId,
             ref:"attraction"
         }
     ],
-    hotelId:[
+    hotels:[
         {
             type : mongoose.Schema.Types.ObjectId,
             ref:'hotel'

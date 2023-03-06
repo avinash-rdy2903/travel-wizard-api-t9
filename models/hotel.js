@@ -4,9 +4,14 @@ const Hotel = new mongoose.Schema({
     address: String,
     lat:Number,
     long:Number,
-    roomId:[{
+    rooms:[{
             type:mongoose.Schema.Types.ObjectId,
-            ref:'room'
+            ref:'Room'
     }],// refers to another room associated with the hotel
+    reviews:[{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'Review'
+    }],
+    avgRating:Number
 })
 module.exports=mongoose.model("Hotel",Hotel);

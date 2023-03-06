@@ -12,7 +12,15 @@ const express = require('express'),
 
 const User = require('./models/userDetails'),
     Credentials = require('./models/credentials'),
-    Otp = require('./models/otp.js');
+    Otp = require('./models/otp'),
+    RoomReservation = require('./models/roomReservation'),
+    Place = require('./models/place'),
+    Attraction = require('./models/attraction'),
+    Hotel = require('./models/hotel'),
+    Room = require('./models/room'),
+    RoomType = require('./models/roomType'),
+    Reservation = require('./models/reservation');
+
 const transporter = nodeMailer.createTransport({
     service:'Gmail',
     auth:{
@@ -170,7 +178,7 @@ app.post('/register',async (req,res)=>{
             from: process.env.ADMIN_EMAIL,
             to: req.body.email,
             subject: 'Authentication Required',
-            html: `<h3>Hello ${req.body.ln}</h3><div> Please click <a href="http://localhost:${process.env.PORT}/verify/email/${user.id}/${token}>this link</a> to verify your email ID.</div><div>Thank you for joining Travel Wizard</div>`
+            html: `<h3>Hello ${req.body.ln}</h3><div> Please click <a href="${process.env.LINK}/verify/email/${user.id}/${token}>this link</a> to verify your email ID.</div><div>Thank you for joining Travel Wizard</div>`
         };
         let info = await transporter.sendMail(mailOptions);
         await user.save();
@@ -239,22 +247,70 @@ app.post('/otp/email',async (req,res)=>{
         res.json({status:400,message:err.message});
     }
 })
-app.get("/destination/:place",async (req,res) => {
+app.get('/place/:placeName',async (req, res) => {
 
 })
-app.post("/hotels",async (req,res) => {
-    const place = req.body.place,
-        start = req.body.fromDate,
-        end = req.body.toDate;
-    hotelData = []
-    hotels = await Hotel.find({
-        '_id':{ $in:await Place.find({name:place}).hotelId }
-    })
-    for(var hotel in hotels){
-        count = 0;
-        for(var roomId in hotel.roomId){
+app.post("/place/:placeId",async (req, res) => {
+    try{
+        let place = await Place.findOneById(req.params.placeId).populate('attractions');
+        res.json({status:200,place:place,redirect:`/place/${place.name}`})
+    }catch(err){
+        console.log(err);
+        res.json({status:400,message:err.message});
+    }
+})
+app.get("/query",(req,res)=>{
+    console.log(req.query.hello)
+    res.send(req.query.hello);
+})
+app.get("/hotels",async (req,res) => {
+    let minPrice = req.query.minPrice && 0,
+    maxPrice = req.query.maxPrice && Number.MAX_VALUE;
+    const hotelData = []
+    try{
+        let hotelIds = await Place.findById(req.query.placeId,"hotels");
+        console.log(hotelIds);
+        let hotels = await Hotel.find({
+            '_id':{ $in: hotelIds.hotels},
+            avgRating:{ $gte:new Number(req.query.rating) && 0 }
+        }).populate('rooms');
+        // await hotels;
+        console.log(hotels);
+        for(let i=0;i<hotels.length;i++){
+            let hotel = hotels[i];
+            console.log(hotel);
+            var count = 0;
+            console.log(hotel.rooms);
+            for(let j=0;j<hotel.rooms.length;j++){
+                let room = hotel.rooms[j];
+                if(room.price<minPrice || room.price>maxPrice){
+                    console.log("price if");
+                    return ;
+                }
+                let roomReservations = await RoomReservation.find({});
+                console.log(roomReservations.length);
+                if(roomReservations.length===0){
+                    count+=1;
+                    console.log(count);
+                }else{
+                    roomReservations = await roomReservations.populate('reservations');
+                    console.log(roomReservations);
+                    count+=helper.getNonOverlappingCount(roomReservations,start,end);
+                }
+            }
+            console.log(count+"out");
 
+            if(count!=0){
+                console.log("count not 0");
+                hotelData.push({name:hotel.name,address:hotel.address,availability:count,image:hotel.image});
+            }
         }
+        
+        res.json({status:200,data:hotelData});
+    }catch(e){
+        
+        console.log(e.stack);
+        res.json({status:404,data:e.message});
     }
 })
 app.listen(PORT, () => {

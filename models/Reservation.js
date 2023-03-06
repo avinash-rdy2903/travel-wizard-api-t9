@@ -2,13 +2,13 @@ const mongoose = require('mongoose');
 const Reservation = new mongoose.Schema({
     guestId:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"user",
+        ref:"User",
         unique:true,
         index:true
     },
     roomReservationId:[{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"roomReservation"
+        ref:"RoomReservation"
     }],
     totalPrice:Number,
     startDate:Date,

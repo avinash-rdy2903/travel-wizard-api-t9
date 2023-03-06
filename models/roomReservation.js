@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 const roomReservation = new mongoose.Schema({
     roomId:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"room"
+        ref:"Room"
     },
-    ReservationId:{
+    Reservations:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"reservation"
+        ref:"Reservation"
     }
 })
-module.exports = mongoose.model('roomReservation', roomReservation)
+module.exports = mongoose.model('RoomReservation', roomReservation)
