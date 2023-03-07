@@ -19,7 +19,10 @@ const User = require('./models/userDetails'),
     Hotel = require('./models/hotel'),
     Room = require('./models/room'),
     RoomType = require('./models/roomType'),
+    Review = require('./models/review'),
     Reservation = require('./models/reservation');
+
+const helper = require('./helper/helper');
 
 const transporter = nodeMailer.createTransport({
     service:'Gmail',
@@ -264,44 +267,46 @@ app.get("/query",(req,res)=>{
     res.send(req.query.hello);
 })
 app.get("/hotels",async (req,res) => {
-    let minPrice = req.query.minPrice && 0,
-    maxPrice = req.query.maxPrice && Number.MAX_VALUE;
+    let placeId = req.query.placeId,
+    start = req.query.start,
+    end = req.query.end,
+    minPrice = req.query.minPrice || 0,
+    maxPrice = req.query.maxPrice || Number.MAX_VALUE;
+    console.log(req.query.rating);
     const hotelData = []
     try{
-        let hotelIds = await Place.findById(req.query.placeId,"hotels");
+        let hotelIds = await Place.findById(placeId,"hotels");
         console.log(hotelIds);
         let hotels = await Hotel.find({
             '_id':{ $in: hotelIds.hotels},
-            avgRating:{ $gte:new Number(req.query.rating) && 0 }
+            avgRating:{ $gte:new Number(req.query.rating) || 0 }
         }).populate('rooms');
         // await hotels;
         console.log(hotels);
         for(let i=0;i<hotels.length;i++){
             let hotel = hotels[i];
-            console.log(hotel);
             var count = 0;
-            console.log(hotel.rooms);
             for(let j=0;j<hotel.rooms.length;j++){
                 let room = hotel.rooms[j];
                 if(room.price<minPrice || room.price>maxPrice){
                     console.log("price if");
-                    return ;
+                    continue;
                 }
-                let roomReservations = await RoomReservation.find({});
-                console.log(roomReservations.length);
-                if(roomReservations.length===0){
-                    count+=1;
+                let roomReservations = RoomReservation.find({roomId:room.id}).populate("reservationId").cursor();
+                
+                // if(roomReservations.constructor.name!="Array"){
+                //     roomReservations = [].concat(roomReservations);
+                // }
+                
+                await helper.getNonOverlappingCount(roomReservations,start,end).then((c)=>{
+                    console.log(c);
+                    count+=c;
                     console.log(count);
-                }else{
-                    roomReservations = await roomReservations.populate('reservations');
-                    console.log(roomReservations);
-                    count+=helper.getNonOverlappingCount(roomReservations,start,end);
-                }
+                });
+                
             }
-            console.log(count+"out");
 
             if(count!=0){
-                console.log("count not 0");
                 hotelData.push({name:hotel.name,address:hotel.address,availability:count,image:hotel.image});
             }
         }
@@ -312,6 +317,35 @@ app.get("/hotels",async (req,res) => {
         console.log(e.stack);
         res.json({status:404,data:e.message});
     }
+})
+app.get("/hotels/:id",async (req,res)=>{
+    let start = req.query.start,
+    end = req.query.end,
+    minPrice = req.query.minPrice && 0,
+    maxPrice = req.query.maxPrice && Number.MAX_VALUE;
+    try{
+        const hotel = await Hotel.findById(req.params.id).populate('rooms').populate('reviews');
+        for(let j=0;j<hotel.rooms.length;j++){
+            let room = hotel.rooms[j];
+            if(room.price<minPrice || room.price>maxPrice){
+                console.log("price if");
+                continue;
+            }
+            let roomReservations = RoomReservation.find({roomId:room.id}).populate("reservationId").cursor();
+            
+            await helper.getNonOverlappingCount(roomReservations,start,end).then((c)=>{
+                if(c==0){
+                    delete hotel.rooms[j];
+                }
+            });
+            
+        }
+        res.json({status:200,hotel:hotel});
+    }catch(e){
+        console.log(e.stack);
+        res.json({status:400,message:e.message});
+    }
+
 })
 app.listen(PORT, () => {
     console.log('listening on port ' + PORT);

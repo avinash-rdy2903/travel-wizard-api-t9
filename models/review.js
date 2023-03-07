@@ -3,4 +3,4 @@ const Review = new mongoose.Schema({
     ratings:Number,
     comment:String
 })
-module.exports = mongoose.model('Review',Review)
+module.exports = mongoose.model('Review',Review);
