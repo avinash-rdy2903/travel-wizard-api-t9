@@ -9,7 +9,7 @@ const Place = new mongoose.Schema({
     attractions :[
         {
             type : mongoose.Schema.Types.ObjectId,
-            ref:"attraction"
+            ref:"Attraction"
         }
     ],
     hotels:[

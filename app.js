@@ -243,20 +243,25 @@ app.get("/logout",(req,res)=>{
         console.log(err.message);
     }
 })
-app.post("/place/:placeId",async (req, res) => {
+app.get("/place/:placeId",async (req, res) => {
     try{
-        let place = await Place.findOneById(req.params.placeId).populate('attractions');
-        res.json({status:200,place:place,redirect:`/place/${place.name}`})
+        let place = await Place.findById(req.params.placeId).populate('attractions');
+        console.log("place search working");
+        console.log(place);
+        res.json({status:200,place:place})
     }catch(err){
         console.log(err);
         res.json({status:400,message:err.message});
     }
 })
 app.get('/search/:key',async (req,res)=>{
+    if(req.params.key===''){
+        res.send();
+    }
     try{
         const place = await Place.find({
-            "$or":[{name:{$regex:req.params.key}}]
-        });
+            "$or":[{name:{$regex:'^'+req.params.key,$options:"i"}}]
+        },['name','_id']);
         res.send(place);
     }catch(e){
         console.log(e.stack);
