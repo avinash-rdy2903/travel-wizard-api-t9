@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Hotel = new mongoose.Schema({
     name: String,
     address: String,
+    image:String,
     lat:Number,
     long:Number,
     rooms:[{

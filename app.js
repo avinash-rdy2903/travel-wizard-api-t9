@@ -5,9 +5,8 @@ const express = require('express'),
      passport = require('passport'),
      localStrategy = require('passport-local'),
      googleStrategy = require('passport-google-oauth20').Strategy,
-     facebookStrategy = require('passport-facebook').Strategy,
      flash = require('flash'),
-     jwt = require('jsonwebtoken');
+     jwt = require('jsonwebtoken'),
      nodeMailer = require('nodemailer');
 
 const User = require('./models/userDetails'),
@@ -17,6 +16,7 @@ const User = require('./models/userDetails'),
     Place = require('./models/place'),
     Attraction = require('./models/attraction'),
     Hotel = require('./models/hotel'),
+    Flight = require('./models/flight');
     Room = require('./models/room'),
     RoomType = require('./models/roomType'),
     Review = require('./models/review'),
@@ -42,7 +42,7 @@ mongoose.connection.once('open',()=>{
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(cors());
+app.use(cors({credentials: true, origin: 'http://localhost:3000'}));
 app.use(require("express-session")({
 	secret:process.env.EXPRESS_SESSION_SECRET,
 	resave:false,
@@ -67,42 +67,38 @@ passport.use(new googleStrategy({
     return done(null, profile);
 }
 ));
-passport.use(new facebookStrategy({
-    clientID: process.env.FACEBOOK_CLIENT_ID,
-    clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-    callbackURL : "/auth/facebook/callback",
-    passReqToCallback : true
-},async (request, accessToken,) => {
-    console.log(profile);
-}
-))
 passport.serializeUser(function(user, done) {
-    done(null, user);
+    return done(null, user);
   });
   
   passport.deserializeUser(function(obj, done) {
-    done(null, obj);
+    return done(null, obj);
   });
 
 app.use(express.json());
-app.use(express.urlencoded());
+app.use(express.urlencoded({extended:true}));
 
 app.get('/', (req, res) => {
     res.send('<div><a href=/login>Login</a></div><a href=/register>register</a>');
 })
 app.post('/auth/local',passport.authenticate('local',{
-    failureRedirect:'/login/failure',
-    successRedirect: '/login/success'
-}))
+    failureRedirect:'/login/failure'
+}),(req,res)=>{
+    console.log(req.user);
+    res.json({status:200,username:req.user.username});
+})
 app.get('/login/:action',(req,res)=>{
     if(req.params.action==='failure'){
+        console.log("failed login");
         res.json({status:401,redirect:'/login',message:"Auth failed"})
-    }
-    let username = req.user.username;
+    }else{
+        console.log(req.user);
+    // let username = req.user.username;
     if(req.user.provider==='google'){
         username = req.user._json.given_name;
     }
-    res.json({status:200,redirect:'/',username:username});
+        res.json({status:200,username:username});
+    }
 })
 app.get('/login',(req,res)=>{
     console.log(req.body);
@@ -112,24 +108,12 @@ app.get('/auth/google',passport.authenticate('google', {
     scope:
         ['email', 'profile']
 }));
-app.get('/auth/facebook',passport.authenticate('facebook',{
-    scope: ['email','profile']
-}))
-app.get('/auth/facebook/callback',
-    passport.authenticate('facebook',{
-        failureRedirect: '/login/failure',
-        successRedirect: '/login/success'
-    })
-)
 app.get('/auth/google/callback',
     passport.authenticate('google', {
         failureRedirect: '/login/failure',
         successRedirect: '/login/success'
     })
 );
-app.get('/register',(req,res)=>{
-    res.sendFile('public/register.html',{root:__dirname});
-})
 app.get('/verify/email/:id/:token',async (req,res)=>{
     try{
         let user = await User.findById(mongoose.Types.ObjectId(req.params.id));
@@ -250,8 +234,14 @@ app.post('/otp/email',async (req,res)=>{
         res.json({status:400,message:err.message});
     }
 })
-app.get('/place/:placeName',async (req, res) => {
-
+app.get("/logout",(req,res)=>{
+    try{
+        req.logout();
+        res.json({status:200,message:"logout successful"});
+    }catch(err){
+        console.log(err.stack);
+        console.log(err.message);
+    }
 })
 app.post("/place/:placeId",async (req, res) => {
     try{
@@ -262,10 +252,60 @@ app.post("/place/:placeId",async (req, res) => {
         res.json({status:400,message:err.message});
     }
 })
-app.get("/query",(req,res)=>{
-    console.log(req.query.hello)
-    res.send(req.query.hello);
+app.get('/search/:key',async (req,res)=>{
+    try{
+        const place = await Place.find({
+            "$or":[{name:{$regex:req.params.key}}]
+        });
+        res.send(place);
+    }catch(e){
+        console.log(e.stack);
+        res.json({status:400,message:e.message});
+    }
 })
+// app.get('/search', async (req, res) => {
+
+//     try {
+//         // console.log(await Place.find({}));
+//         const title = req.query.title;
+//         console.log(title);
+//         // const agg = 
+
+//         const response = await Place.aggregate([
+//             {
+//                 '$search': {
+//                     'index':'name_1',
+//                     'autocomplete': {
+//                         'query': title,
+//                         'path': 'name'
+//                     }
+//                 }
+//             }, 
+//             {
+//                 '$limit': 5
+//             },           
+//             {
+//                 '$project': {
+//                     'name': 1,
+//                     '_id': 1
+//                 }
+//             }
+            
+//         ]);
+
+//         console.log(response);
+
+//         res.json({status:200,data:response});
+
+//     } catch (error) {
+
+//         console.log(error)
+
+//         return res.json({status:400,message:error.message});
+
+//     }
+
+// })
 app.get("/hotels",async (req,res) => {
     let placeId = req.query.placeId,
     start = req.query.start,
@@ -346,6 +386,21 @@ app.get("/hotels/:id",async (req,res)=>{
         res.json({status:400,message:e.message});
     }
 
+})
+app.post('/flights',async (req,res)=>{
+    try{
+        let src = req.body.source,
+        des = req.body.destination,
+        date = new Date(req.body.date),
+        tomorrow = new Date(date.getTime() + (24 * 60 * 60 * 1000))
+        let filter = {source: src, destination:des,departureDate: {$gte:date,$lte:tomorrow}}
+        console.log(filter);
+        let flights = await Flight.find(filter);
+        res.json({status:200,data:flights});
+    }catch(err){
+        console.log(err.stack);
+        res.json({status:400,message:err.message});
+    }
 })
 app.listen(PORT, () => {
     console.log('listening on port ' + PORT);
