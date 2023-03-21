@@ -392,11 +392,11 @@ app.get("/hotels/:id",async (req,res)=>{
     }
 
 })
-app.post('/flights',async (req,res)=>{
+app.get('/flights',async (req,res)=>{
     try{
-        let src = req.body.source,
-        des = req.body.destination,
-        date = new Date(req.body.date),
+        let src = req.query.source,
+        des = req.query.destination,
+        date = new Date(req.query.date),
         tomorrow = new Date(date.getTime() + (24 * 60 * 60 * 1000))
         let filter = {source: src, destination:des,departureDate: {$gte:date,$lte:tomorrow}}
         console.log(filter);
