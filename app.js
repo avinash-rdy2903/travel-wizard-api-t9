@@ -82,15 +82,24 @@ app.get('/', (req, res) => {
 })
 app.post('/auth/local',passport.authenticate('local',{
     failureRedirect:'/login/failure',
-    successRedirect:'/login/success'
-}),(req,res)=>{
+}),async (req,res)=>{
+    console.log(req.user);
+    console.log(req.session.passport.user);
+    let cart = await helper.getUserCart(PlaceCart,req.user._id);
     
+    let username = req.user.username;
+    if(req.user.provider==='google'){
+        username = req.user._json.given_name;
+    }
+    res.status(200).json({status:200,username:username,cart:cart});
 })
 app.get('/login/:action',async (req,res)=>{
     if(req.params.action==='failure'){
         console.log("failed login");
-        res.json({status:401,redirect:'/login',message:"Auth failed"})
+        res.status(400).json({status:401,redirect:'/login',message:"Auth failed"})
     }else{
+        console.log(req.user);
+        console.log(req.session.passport.user);
         let cart = await helper.getUserCart(PlaceCart,req.user._id);
         
         let username = req.user.username;
