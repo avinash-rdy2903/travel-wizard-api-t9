@@ -6,7 +6,7 @@ const Reservation = new mongoose.Schema({
         unique:true,
         index:true
     },
-    roomReservationId:[{
+    roomReservations:[{
         type:mongoose.Schema.Types.ObjectId,
         ref:"RoomReservation"
     }],

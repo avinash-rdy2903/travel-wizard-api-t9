@@ -6,6 +6,8 @@ const Place = new mongoose.Schema({
         unique : true,
         index:true
     },
+    lat:Number,
+    long:Number,
     attractions :[
         {
             type : mongoose.Schema.Types.ObjectId,
@@ -19,4 +21,4 @@ const Place = new mongoose.Schema({
         }
     ]
 })
-module.exports = mongoose.model("place",Place)
+module.exports = mongoose.model("Place",Place)

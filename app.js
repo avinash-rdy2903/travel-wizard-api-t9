@@ -5,7 +5,6 @@ const express = require('express'),
      passport = require('passport'),
      localStrategy = require('passport-local'),
      googleStrategy = require('passport-google-oauth20').Strategy,
-     flash = require('flash'),
      jwt = require('jsonwebtoken'),
      nodeMailer = require('nodemailer');
 
@@ -14,6 +13,7 @@ const User = require('./models/userDetails'),
     Otp = require('./models/otp'),
     RoomReservation = require('./models/roomReservation'),
     Place = require('./models/place'),
+    PlaceCart = require('./models/placeCart'),
     Attraction = require('./models/attraction'),
     Hotel = require('./models/hotel'),
     Flight = require('./models/flight');
@@ -22,8 +22,7 @@ const User = require('./models/userDetails'),
     Review = require('./models/review'),
     Reservation = require('./models/reservation');
 
-const helper = require('./helper/helper');
-
+const { middleware , helper }= require('./utils/utils');
 const transporter = nodeMailer.createTransport({
     service:'Gmail',
     auth:{
@@ -82,27 +81,24 @@ app.get('/', (req, res) => {
     res.send('<div><a href=/login>Login</a></div><a href=/register>register</a>');
 })
 app.post('/auth/local',passport.authenticate('local',{
-    failureRedirect:'/login/failure'
+    failureRedirect:'/login/failure',
+    successRedirect:'/login/success'
 }),(req,res)=>{
-    console.log(req.user);
-    res.json({status:200,username:req.user.username});
+    
 })
-app.get('/login/:action',(req,res)=>{
+app.get('/login/:action',async (req,res)=>{
     if(req.params.action==='failure'){
         console.log("failed login");
         res.json({status:401,redirect:'/login',message:"Auth failed"})
     }else{
-        console.log(req.user);
-    // let username = req.user.username;
-    if(req.user.provider==='google'){
-        username = req.user._json.given_name;
+        let cart = await helper.getUserCart(PlaceCart,req.user._id);
+        
+        let username = req.user.username;
+        if(req.user.provider==='google'){
+            username = req.user._json.given_name;
+        }
+        res.json({status:200,username:username,cart:cart});
     }
-        res.json({status:200,username:username});
-    }
-})
-app.get('/login',(req,res)=>{
-    console.log(req.body);
-    res.sendFile('public/login.html',{root:__dirname});
 })
 app.get('/auth/google',passport.authenticate('google', {
     scope:
@@ -254,6 +250,9 @@ app.get("/place/:placeId",async (req, res) => {
         res.json({status:400,message:err.message});
     }
 })
+app.get("/verify/login",(req,res)=>{
+    res.json(req.session.passport.user);
+})
 app.get('/search/:key',async (req,res)=>{
     if(req.params.key===''){
         res.send();
@@ -268,49 +267,6 @@ app.get('/search/:key',async (req,res)=>{
         res.json({status:400,message:e.message});
     }
 })
-// app.get('/search', async (req, res) => {
-
-//     try {
-//         // console.log(await Place.find({}));
-//         const title = req.query.title;
-//         console.log(title);
-//         // const agg = 
-
-//         const response = await Place.aggregate([
-//             {
-//                 '$search': {
-//                     'index':'name_1',
-//                     'autocomplete': {
-//                         'query': title,
-//                         'path': 'name'
-//                     }
-//                 }
-//             }, 
-//             {
-//                 '$limit': 5
-//             },           
-//             {
-//                 '$project': {
-//                     'name': 1,
-//                     '_id': 1
-//                 }
-//             }
-            
-//         ]);
-
-//         console.log(response);
-
-//         res.json({status:200,data:response});
-
-//     } catch (error) {
-
-//         console.log(error)
-
-//         return res.json({status:400,message:error.message});
-
-//     }
-
-// })
 app.get("/hotels",async (req,res) => {
     let placeId = req.query.placeId,
     start = req.query.start,
@@ -352,7 +308,7 @@ app.get("/hotels",async (req,res) => {
             }
 
             if(count!=0){
-                hotelData.push({name:hotel.name,address:hotel.address,availability:count,image:hotel.image});
+                hotelData.push({id:hotel.id,name:hotel.name,address:hotel.address,availability:count,image:hotel.image});
             }
         }
         
@@ -392,11 +348,11 @@ app.get("/hotels/:id",async (req,res)=>{
     }
 
 })
-app.post('/flights',async (req,res)=>{
+app.get('/flights',async (req,res)=>{
     try{
-        let src = req.body.source,
-        des = req.body.destination,
-        date = new Date(req.body.date),
+        let src = req.query.source,
+        des = req.query.destination,
+        date = new Date(req.query.date),
         tomorrow = new Date(date.getTime() + (24 * 60 * 60 * 1000))
         let filter = {source: src, destination:des,departureDate: {$gte:date,$lte:tomorrow}}
         console.log(filter);
@@ -405,6 +361,27 @@ app.post('/flights',async (req,res)=>{
     }catch(err){
         console.log(err.stack);
         res.json({status:400,message:err.message});
+    }
+})
+
+app.post("/cart/places",middleware.isLoggedIn,async (req,res)=>{
+    const userId = req.session.passport.user._id;
+    try{
+        var placeCart = await helper.getUserCart(PlaceCart,userId);
+        console.log(placeCart);
+        if(placeCart==null){
+            placeCart = await PlaceCart.create({user:userId,items:[{id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)}]});
+        }else{
+            console.log("placeCart");
+            console.log(placeCart);
+            placeCart.items.push({id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)});
+        }
+        await placeCart.save();
+        res.json({status:200,message:"Added to cart"});
+    }catch(e){
+        console.log(e.stack);
+        console.log(e.message);
+        res.json({status:400,message:e.message});
     }
 })
 app.listen(PORT, () => {
