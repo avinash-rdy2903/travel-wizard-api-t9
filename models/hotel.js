@@ -3,8 +3,6 @@ const Hotel = new mongoose.Schema({
     name: String,
     address: String,
     image:String,
-    lat:Number,
-    long:Number,
     rooms:[{
             type:mongoose.Schema.Types.ObjectId,
             ref:'Room'
