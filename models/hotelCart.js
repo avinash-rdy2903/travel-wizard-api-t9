@@ -5,11 +5,11 @@ const HotelCartSchema = new mongoose.Schema({
         ref:"User"
     },
     hotels:[{
-        hotelId:{
+        hotel:{
             type:mongoose.Schema.Types.ObjectId,
             ref:"Hotel"
         },
-        roomId:{
+        room:{
             type:mongoose.Schema.Types.ObjectId,
             ref:"Room"
         },

@@ -409,7 +409,7 @@ app.get('/flights',async (req,res)=>{
 app.post("/cart/places",middleware.isLoggedIn,async (req,res)=>{
     const userId = req.session.passport.user._id;
     try{
-        var {placeCart} = await helper.getUserCart(PlaceCart,userId);
+        var {placeCart} = await helper.getUserCart(PlaceCart,undefined,undefined,userId);
         console.log(placeCart);
          if(placeCart==null){
             placeCart = await PlaceCart.create({user:userId,items:[{id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)}]});

@@ -5,9 +5,9 @@ const placeCart = new mongoose.Schema({
         ref:"User",
         unique:true
     },
-    items:[{
+    places:[{
         
-       id: {
+       place: {
             type:mongoose.Schema.Types.ObjectId,
             ref:"Place"
         },
