@@ -83,8 +83,7 @@ app.get('/', (req, res) => {
 app.post('/auth/local',passport.authenticate('local',{
     failureRedirect:'/login/failure',
 }),async (req,res)=>{
-    console.log(req.user);
-    console.log(req.session.passport.user);
+    
     let cart = await helper.getUserCart(PlaceCart,req.user._id);
     
     let username = req.user.username;
@@ -98,10 +97,7 @@ app.get('/login/:action',async (req,res)=>{
         console.log("failed login");
         res.status(400).json({status:401,redirect:'/login',message:"Auth failed"})
     }else{
-        console.log(req.user);
-        console.log(req.session.passport.user);
         let cart = await helper.getUserCart(PlaceCart,req.user._id);
-        
         let username = req.user.username;
         if(req.user.provider==='google'){
             username = req.user._json.given_name;
@@ -309,54 +305,45 @@ app.get("/hotels",async (req,res) => {
                 // }
                 
                 await helper.getNonOverlappingCount(roomReservations,start,end).then((c)=>{
-                    console.log(c);
                     count+=c;
-                    console.log(count);
-                });
-                
+                });                
             }
-
             if(count!=0){
-                hotelData.push({id:hotel.id,name:hotel.name,address:hotel.address,availability:count,image:hotel.image});
+                hotelData.push(hotel);
             }
-        }
-        
-        res.json({status:200,data:hotelData});
-    }catch(e){
-        
+        }        
+        res.status(200).json({status:200,data:hotelData});
+    }catch(e){        
         console.log(e.stack);
-        res.json({status:404,data:e.message});
+        res.status(400).json({status:400,data:e.message});
     }
 })
-app.get("/hotels/:id",async (req,res)=>{
-    let start = req.query.start,
-    end = req.query.end,
-    minPrice = req.query.minPrice && 0,
-    maxPrice = req.query.maxPrice && Number.MAX_VALUE;
-    try{
-        const hotel = await Hotel.findById(req.params.id).populate('rooms').populate('reviews');
-        for(let j=0;j<hotel.rooms.length;j++){
-            let room = hotel.rooms[j];
-            if(room.price<minPrice || room.price>maxPrice){
-                console.log("price if");
-                continue;
-            }
-            let roomReservations = RoomReservation.find({roomId:room.id}).populate("reservationId").cursor();
-            
-            await helper.getNonOverlappingCount(roomReservations,start,end).then((c)=>{
-                if(c==0){
-                    delete hotel.rooms[j];
-                }
-            });
-            
-        }
-        res.json({status:200,hotel:hotel});
-    }catch(e){
-        console.log(e.stack);
-        res.json({status:400,message:e.message});
-    }
-
-})
+// app.get("/hotels/:id",async (req,res)=>{
+//     let start = req.query.start,
+//     end = req.query.end,
+//     minPrice = req.query.minPrice && 0,
+//     maxPrice = req.query.maxPrice && Number.MAX_VALUE;
+//     try{
+//         const hotel = await Hotel.findById(req.params.id).populate('rooms').populate('reviews');
+//         for(let j=0;j<hotel.rooms.length;j++){
+//             let room = hotel.rooms[j];
+//             if(room.price<minPrice || room.price>maxPrice){
+//                 console.log("price if");
+//                 continue;
+//             }
+//             let roomReservations = RoomReservation.find({roomId:room.id}).populate("reservationId").cursor();
+//             await helper.getNonOverlappingCount(roomReservations,start,end).then((c)=>{
+//                 if(c==0){
+//                     delete hotel.rooms[j];
+//                 }
+//             });            
+//         }
+//         res.json({status:200,hotel:hotel});
+//     }catch(e){
+//         console.log(e.stack);
+//         res.json({status:400,message:e.message});
+//     }
+// })
 app.get('/flights',async (req,res)=>{
     try{
         let src = req.query.source,
@@ -366,10 +353,10 @@ app.get('/flights',async (req,res)=>{
         let filter = {source: src, destination:des,departureDate: {$gte:date,$lte:tomorrow}}
         console.log(filter);
         let flights = await Flight.find(filter);
-        res.json({status:200,data:flights});
+        res.status(200).json({status:200,data:flights});
     }catch(err){
         console.log(err.stack);
-        res.json({status:400,message:err.message});
+        res.status(400).json({status:400,message:err.message});
     }
 })
 
