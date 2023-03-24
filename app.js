@@ -5,9 +5,7 @@ const express = require('express'),
      passport = require('passport'),
      localStrategy = require('passport-local'),
      googleStrategy = require('passport-google-oauth20').Strategy,
-     facebookStrategy = require('passport-facebook').Strategy,
-     flash = require('flash'),
-     jwt = require('jsonwebtoken');
+     jwt = require('jsonwebtoken'),
      nodeMailer = require('nodemailer');
 
 const User = require('./models/userDetails'),
@@ -45,7 +43,7 @@ mongoose.connection.once('open',()=>{
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(cors());
+app.use(cors({credentials: true, origin: 'http://localhost:3000'}));
 app.use(require("express-session")({
 	secret:process.env.EXPRESS_SESSION_SECRET,
 	resave:false,
@@ -70,25 +68,16 @@ passport.use(new googleStrategy({
     return done(null, profile);
 }
 ));
-passport.use(new facebookStrategy({
-    clientID: process.env.FACEBOOK_CLIENT_ID,
-    clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-    callbackURL : "/auth/facebook/callback",
-    passReqToCallback : true
-},async (request, accessToken,) => {
-    console.log(profile);
-}
-))
 passport.serializeUser(function(user, done) {
-    done(null, user);
+    return done(null, user);
   });
   
   passport.deserializeUser(function(obj, done) {
-    done(null, obj);
+    return done(null, obj);
   });
 
 app.use(express.json());
-app.use(express.urlencoded());
+app.use(express.urlencoded({extended:true}));
 
 app.get('/', (req, res) => {
     res.send('<div><a href=/login>Login</a></div><a href=/register>register</a>');
@@ -122,24 +111,12 @@ app.get('/auth/google',passport.authenticate('google', {
     scope:
         ['email', 'profile']
 }));
-app.get('/auth/facebook',passport.authenticate('facebook',{
-    scope: ['email','profile']
-}))
-app.get('/auth/facebook/callback',
-    passport.authenticate('facebook',{
-        failureRedirect: '/login/failure',
-        successRedirect: '/login/success'
-    })
-)
 app.get('/auth/google/callback',
     passport.authenticate('google', {
         failureRedirect: '/login/failure',
         successRedirect: '/login/success'
     })
 );
-app.get('/register',(req,res)=>{
-    res.sendFile('public/register.html',{root:__dirname});
-})
 app.get('/verify/email/:id/:token',async (req,res)=>{
     try{
         let user = await User.findById(mongoose.Types.ObjectId(req.params.id));
@@ -191,7 +168,7 @@ app.post('/register',async (req,res)=>{
             from: process.env.ADMIN_EMAIL,
             to: req.body.email,
             subject: 'Authentication Required',
-            html: `<h3>Hello ${req.body.ln}</h3><div> Please click <a href="http://localhost:${process.env.PORT}/verify/email/${user.id}/${token}>this link</a> to verify your email ID.</div><div>Thank you for joining Travel Wizard</div>`
+            html: `<h3>Hello ${req.body.ln}</h3><div> Please click <a href="${process.env.LINK}/verify/email/${user.id}/${token}>this link</a> to verify your email ID.</div><div>Thank you for joining Travel Wizard</div>`
         };
         let info = await transporter.sendMail(mailOptions);
         await user.save();
@@ -407,4 +384,4 @@ app.post("/cart/places",middleware.isLoggedIn,async (req,res)=>{
 })
 app.listen(PORT, () => {
     console.log('listening on port ' + PORT);
-})
+});
