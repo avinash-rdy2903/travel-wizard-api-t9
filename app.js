@@ -1,9 +1,11 @@
 require('dotenv').config();
 const express = require('express'),
      mongoose = require('mongoose'),
+     session = require('express-session'),
+     MongoStore = require('connect-mongo'),
      cors = require('cors'),
      passport = require('passport'),
-     localStrategy = require('passport-local'),
+     localStrategy = require('passport-local').Strategy,
      googleStrategy = require('passport-google-oauth20').Strategy,
      jwt = require('jsonwebtoken'),
      nodeMailer = require('nodemailer');
@@ -43,15 +45,62 @@ mongoose.connection.once('open',()=>{
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(cors({credentials: true, origin: 'http://localhost:3000'}));
-app.use(require("express-session")({
+
+app.use(cors({
+    origin: "http://localhost:3000",
+    methods: "GET,POST,PUT,DELETE",
+    credentials: true,
+  })
+);
+
+app.use(session({
 	secret:process.env.EXPRESS_SESSION_SECRET,
 	resave:false,
-	saveUninitialized:false
+	saveUninitialized:false,
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        ttl:24 * 60 * 60,
+        dbName:"travelWizard"
+    }),
 }));
-app.use(passport.initialize());
-app.use(passport.session());
-passport.use(new localStrategy(Credentials.authenticate()));
+passport.serializeUser((user, done) => {
+	console.log('=== serialize ... called ===')
+	console.log(user) // the whole raw user object!
+	console.log('---------')
+	done(null, { _id: user._id })
+})
+passport.deserializeUser((id, done) => {
+	console.log('Deserialize ... called')
+	Credentials.findOne(
+		{ _id: id },
+		'username',
+		(err, user) => {
+			console.log('======= DESERILAIZE USER CALLED ======')
+			console.log(user)
+			console.log('--------------')
+			done(null, user)
+		}
+	)
+})
+passport.use(new localStrategy(
+	{
+		usernameField: 'username' // not necessary, DEFAULT
+	},
+	function(username, password, done) {
+		Credentials.findOne({ 'username': username }, (err, userMatch) => {
+			if (err) {
+				return done(err)
+			}
+			if (!userMatch) {
+				return done(null, false, { message: 'Incorrect username' })
+			}
+			if (!userMatch.checkPassword(password)) {
+				return done(null, false, { message: 'Incorrect password' })
+			}
+			return done(null, userMatch)
+		})
+	}
+));
 passport.use(new googleStrategy({
     clientID:process.env.GOOGLE_CLIENT_ID,
     clientSecret:process.env.GOOGLE_CLIENT_SECRET,
@@ -68,13 +117,8 @@ passport.use(new googleStrategy({
     return done(null, profile);
 }
 ));
-passport.serializeUser(function(user, done) {
-    return done(null, user);
-  });
-  
-  passport.deserializeUser(function(obj, done) {
-    return done(null, obj);
-  });
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
@@ -86,7 +130,7 @@ app.post('/auth/local',passport.authenticate('local',{
     failureRedirect:'/login/failure',
 }),async (req,res)=>{
     
-    let cart = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
+    let {placeCart,hotelCart,flightCart} = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
     
     let username = req.user.username;
     if(req.user.provider==='google'){
@@ -151,9 +195,9 @@ app.post('/register',async (req,res)=>{
         if(condition!==null){
             res.json({status:401,message:"email already exits"});
         }
-        creds = await Credentials.register(new Credentials({username:req.body.username}),req.body.password);
+        creds = await Credentials.create({username:req.body.username,password:req.body.password});
         user = await User.create({email:req.body.email,fn:req.body.fn,ln:req.body.ln,verified:false});
-        if(req.body.phone!==null){
+        if(req.body.phone!==undefined){
             let temp = await User.findOne({phone:req.body.phone});
             if(temp==null){
                 user.phone = req.body.phone;
@@ -260,7 +304,7 @@ app.get("/place/:placeId",async (req, res) => {
 app.get("/verify/login",(req,res)=>{
     res.json(req.session.passport.user);
 })
-app.get('/search/:key',async (req,res)=>{
+app.get('/search/:key', async (req,res)=>{
     if(req.params.key===''){
         res.send();
     }
@@ -367,7 +411,7 @@ app.post("/cart/places",middleware.isLoggedIn,async (req,res)=>{
     try{
         var {placeCart} = await helper.getUserCart(PlaceCart,userId);
         console.log(placeCart);
-        if(placeCart==null){
+         if(placeCart==null){
             placeCart = await PlaceCart.create({user:userId,items:[{id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)}]});
         }else{
             console.log("placeCart");
