@@ -1,11 +1,12 @@
 const mongoose = require('mongoose');
-const attraction = new mongoose.Schema({
+const Attraction = new mongoose.Schema({
+    name:String,
     address : {
         type : String,
         required : true,
     },
-    lat:Number,
-    long:Number,
+    
     description:String,
     image:String
 })
+module.exports = mongoose.model('Attraction',Attraction)

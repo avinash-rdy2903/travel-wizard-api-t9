@@ -5,14 +5,26 @@ const express = require('express'),
      passport = require('passport'),
      localStrategy = require('passport-local'),
      googleStrategy = require('passport-google-oauth20').Strategy,
-     facebookStrategy = require('passport-facebook').Strategy,
-     flash = require('flash'),
-     jwt = require('jsonwebtoken');
+     jwt = require('jsonwebtoken'),
      nodeMailer = require('nodemailer');
 
 const User = require('./models/userDetails'),
     Credentials = require('./models/credentials'),
-    Otp = require('./models/otp.js');
+    Otp = require('./models/otp'),
+    RoomReservation = require('./models/roomReservation'),
+    Place = require('./models/place'),
+    PlaceCart = require('./models/placeCart'),
+    Attraction = require('./models/attraction'),
+    Hotel = require('./models/hotel'),
+    HotelCart = require('./models/hotelCart');
+    Flight = require('./models/flight');
+    FlightCart = require('./models/flightCart');
+    Room = require('./models/room'),
+    RoomType = require('./models/roomType'),
+    Review = require('./models/review'),
+    Reservation = require('./models/reservation');
+
+const { middleware , helper }= require('./utils/utils');
 const transporter = nodeMailer.createTransport({
     service:'Gmail',
     auth:{
@@ -31,7 +43,7 @@ mongoose.connection.once('open',()=>{
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(cors());
+app.use(cors({credentials: true, origin: 'http://localhost:3000'}));
 app.use(require("express-session")({
 	secret:process.env.EXPRESS_SESSION_SECRET,
 	resave:false,
@@ -56,69 +68,55 @@ passport.use(new googleStrategy({
     return done(null, profile);
 }
 ));
-passport.use(new facebookStrategy({
-    clientID: process.env.FACEBOOK_CLIENT_ID,
-    clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-    callbackURL : "/auth/facebook/callback",
-    passReqToCallback : true
-},async (request, accessToken,) => {
-    console.log(profile);
-}
-))
 passport.serializeUser(function(user, done) {
-    done(null, user);
+    return done(null, user);
   });
   
   passport.deserializeUser(function(obj, done) {
-    done(null, obj);
+    return done(null, obj);
   });
 
 app.use(express.json());
-app.use(express.urlencoded());
+app.use(express.urlencoded({extended:true}));
 
 app.get('/', (req, res) => {
     res.send('<div><a href=/login>Login</a></div><a href=/register>register</a>');
 })
 app.post('/auth/local',passport.authenticate('local',{
     failureRedirect:'/login/failure',
-    successRedirect: '/login/success'
-}))
-app.get('/login/:action',(req,res)=>{
-    if(req.params.action==='failure'){
-        res.json({status:401,redirect:'/login',message:"Auth failed"})
-    }
-    let username = req.body.username;
+}),async (req,res)=>{
+    
+    let cart = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
+    
+    let username = req.user.username;
     if(req.user.provider==='google'){
         username = req.user._json.given_name;
     }
-    res.json({status:200,redirect:'/',username:username});
+    res.json({status:200,username:username,flightCart:flightCart,hotelCart:hotelCart,placeCart:placeCart});
 })
-app.get('/login',(req,res)=>{
-    console.log(req.body);
-    res.sendFile('public/login.html',{root:__dirname});
+app.get('/login/:action',async (req,res)=>{
+    if(req.params.action==='failure'){
+        console.log("failed login");
+        res.status(400).json({status:401,redirect:'/login',message:"Auth failed"})
+    }else{
+        let {placeCart,hotelCart,flightCart} = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
+        let username = req.user.username;
+        if(req.user.provider==='google'){
+            username = req.user._json.given_name;
+        }
+        res.json({status:200,username:username,flightCart:flightCart,hotelCart:hotelCart,placeCart:placeCart});
+    }
 })
 app.get('/auth/google',passport.authenticate('google', {
     scope:
         ['email', 'profile']
 }));
-app.get('/auth/facebook',passport.authenticate('facebook',{
-    scope: ['email','profile']
-}))
-app.get('/auth/facebook/callback',
-    passport.authenticate('facebook',{
-        failureRedirect: '/login/failure',
-        successRedirect: '/login/success'
-    })
-)
 app.get('/auth/google/callback',
     passport.authenticate('google', {
         failureRedirect: '/login/failure',
         successRedirect: '/login/success'
     })
 );
-app.get('/register',(req,res)=>{
-    res.sendFile('public/register.html',{root:__dirname});
-})
 app.get('/verify/email/:id/:token',async (req,res)=>{
     try{
         let user = await User.findById(mongoose.Types.ObjectId(req.params.id));
@@ -170,7 +168,7 @@ app.post('/register',async (req,res)=>{
             from: process.env.ADMIN_EMAIL,
             to: req.body.email,
             subject: 'Authentication Required',
-            html: `<h3>Hello ${req.body.ln}</h3><div> Please click <a href="http://localhost:${process.env.PORT}/verify/email/${user.id}/${token}>this link</a> to verify your email ID.</div><div>Thank you for joining Travel Wizard</div>`
+            html: `<h3>Hello ${req.body.ln}</h3><div> Please click <a href="${process.env.LINK}/verify/email/${user.id}/${token}>this link</a> to verify your email ID.</div><div>Thank you for joining Travel Wizard</div>`
         };
         let info = await transporter.sendMail(mailOptions);
         await user.save();
@@ -239,6 +237,151 @@ app.post('/otp/email',async (req,res)=>{
         res.json({status:400,message:err.message});
     }
 })
+app.get("/logout",(req,res)=>{
+    try{
+        req.logout();
+        res.json({status:200,message:"logout successful"});
+    }catch(err){
+        console.log(err.stack);
+        console.log(err.message);
+    }
+})
+app.get("/place/:placeId",async (req, res) => {
+    try{
+        let place = await Place.findById(req.params.placeId).populate('attractions');
+        console.log("place search working");
+        console.log(place);
+        res.json({status:200,place:place})
+    }catch(err){
+        console.log(err);
+        res.json({status:400,message:err.message});
+    }
+})
+app.get("/verify/login",(req,res)=>{
+    res.json(req.session.passport.user);
+})
+app.get('/search/:key',async (req,res)=>{
+    if(req.params.key===''){
+        res.send();
+    }
+    try{
+        const place = await Place.find({
+            "$or":[{name:{$regex:'^'+req.params.key,$options:"i"}}]
+        },['name','_id']);
+        res.send(place);
+    }catch(e){
+        console.log(e.stack);
+        res.json({status:400,message:e.message});
+    }
+})
+app.get("/hotels",async (req,res) => {
+    let placeId = req.query.placeId,
+    start = req.query.start,
+    end = req.query.end,
+    minPrice = req.query.minPrice || 0,
+    maxPrice = req.query.maxPrice || Number.MAX_VALUE;
+    console.log(req.query.rating);
+    const hotelData = []
+    try{
+        let hotelIds = await Place.findById(placeId,"hotels");
+        console.log(hotelIds);
+        let hotels = await Hotel.find({
+            '_id':{ $in: hotelIds.hotels},
+            avgRating:{ $gte:new Number(req.query.rating) || 0 }
+        }).populate('rooms');
+        // await hotels;
+        console.log(hotels);
+        for(let i=0;i<hotels.length;i++){
+            let hotel = hotels[i];
+            var count = 0;
+            for(let j=0;j<hotel.rooms.length;j++){
+                let room = hotel.rooms[j];
+                if(room.price<minPrice || room.price>maxPrice){
+                    console.log("price if");
+                    continue;
+                }
+                let roomReservations = RoomReservation.find({roomId:room.id}).populate("reservationId").cursor();
+                
+                // if(roomReservations.constructor.name!="Array"){
+                //     roomReservations = [].concat(roomReservations);
+                // }
+                
+                await helper.getNonOverlappingCount(roomReservations,start,end).then((c)=>{
+                    count+=c;
+                });                
+            }
+            if(count!=0){
+                hotelData.push(hotel);
+            }
+        }        
+        res.status(200).json({status:200,data:hotelData});
+    }catch(e){        
+        console.log(e.stack);
+        res.status(400).json({status:400,data:e.message});
+    }
+})
+// app.get("/hotels/:id",async (req,res)=>{
+//     let start = req.query.start,
+//     end = req.query.end,
+//     minPrice = req.query.minPrice && 0,
+//     maxPrice = req.query.maxPrice && Number.MAX_VALUE;
+//     try{
+//         const hotel = await Hotel.findById(req.params.id).populate('rooms').populate('reviews');
+//         for(let j=0;j<hotel.rooms.length;j++){
+//             let room = hotel.rooms[j];
+//             if(room.price<minPrice || room.price>maxPrice){
+//                 console.log("price if");
+//                 continue;
+//             }
+//             let roomReservations = RoomReservation.find({roomId:room.id}).populate("reservationId").cursor();
+//             await helper.getNonOverlappingCount(roomReservations,start,end).then((c)=>{
+//                 if(c==0){
+//                     delete hotel.rooms[j];
+//                 }
+//             });            
+//         }
+//         res.json({status:200,hotel:hotel});
+//     }catch(e){
+//         console.log(e.stack);
+//         res.json({status:400,message:e.message});
+//     }
+// })
+app.get('/flights',async (req,res)=>{
+    try{
+        let src = req.query.source,
+        des = req.query.destination,
+        date = new Date(req.query.date),
+        tomorrow = new Date(date.getTime() + (24 * 60 * 60 * 1000))
+        let filter = {source: src, destination:des,departureDate: {$gte:date,$lte:tomorrow}}
+        console.log(filter);
+        let flights = await Flight.find(filter);
+        res.status(200).json({status:200,data:flights});
+    }catch(err){
+        console.log(err.stack);
+        res.status(400).json({status:400,message:err.message});
+    }
+})
+
+app.post("/cart/places",middleware.isLoggedIn,async (req,res)=>{
+    const userId = req.session.passport.user._id;
+    try{
+        var {placeCart} = await helper.getUserCart(PlaceCart,userId);
+        console.log(placeCart);
+        if(placeCart==null){
+            placeCart = await PlaceCart.create({user:userId,items:[{id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)}]});
+        }else{
+            console.log("placeCart");
+            console.log(placeCart);
+            placeCart.items.push({id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)});
+        }
+        await placeCart.save();
+        res.json({status:200,message:"Added to cart"});
+    }catch(e){
+        console.log(e.stack);
+        console.log(e.message);
+        res.json({status:400,message:e.message});
+    }
+})
 app.listen(PORT, () => {
     console.log('listening on port ' + PORT);
-})
+});

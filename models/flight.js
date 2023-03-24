@@ -5,6 +5,6 @@ const Flight = new mongoose.Schema({
     departureDate:Date,
     arrivalDate:Date,
     price:Number,
-    seats:Number,
-    
-})
+    seats:Number,     
+});
+module.exports=mongoose.model("Flight",Flight);
