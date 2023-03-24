@@ -16,7 +16,9 @@ const User = require('./models/userDetails'),
     PlaceCart = require('./models/placeCart'),
     Attraction = require('./models/attraction'),
     Hotel = require('./models/hotel'),
+    HotelCart = require('./models/hotelCart');
     Flight = require('./models/flight');
+    FlightCart = require('./models/flightCart');
     Room = require('./models/room'),
     RoomType = require('./models/roomType'),
     Review = require('./models/review'),
@@ -84,25 +86,25 @@ app.post('/auth/local',passport.authenticate('local',{
     failureRedirect:'/login/failure',
 }),async (req,res)=>{
     
-    let cart = await helper.getUserCart(PlaceCart,req.user._id);
+    let cart = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
     
     let username = req.user.username;
     if(req.user.provider==='google'){
         username = req.user._json.given_name;
     }
-    res.status(200).json({status:200,username:username,cart:cart});
+    res.json({status:200,username:username,flightCart:flightCart,hotelCart:hotelCart,placeCart:placeCart});
 })
 app.get('/login/:action',async (req,res)=>{
     if(req.params.action==='failure'){
         console.log("failed login");
         res.status(400).json({status:401,redirect:'/login',message:"Auth failed"})
     }else{
-        let cart = await helper.getUserCart(PlaceCart,req.user._id);
+        let {placeCart,hotelCart,flightCart} = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
         let username = req.user.username;
         if(req.user.provider==='google'){
             username = req.user._json.given_name;
         }
-        res.json({status:200,username:username,cart:cart});
+        res.json({status:200,username:username,flightCart:flightCart,hotelCart:hotelCart,placeCart:placeCart});
     }
 })
 app.get('/auth/google',passport.authenticate('google', {
@@ -363,7 +365,7 @@ app.get('/flights',async (req,res)=>{
 app.post("/cart/places",middleware.isLoggedIn,async (req,res)=>{
     const userId = req.session.passport.user._id;
     try{
-        var placeCart = await helper.getUserCart(PlaceCart,userId);
+        var {placeCart} = await helper.getUserCart(PlaceCart,userId);
         console.log(placeCart);
         if(placeCart==null){
             placeCart = await PlaceCart.create({user:userId,items:[{id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)}]});

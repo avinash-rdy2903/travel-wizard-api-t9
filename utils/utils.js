@@ -23,10 +23,21 @@ module.exports = {
             }
             return count;
         },
-        getUserCart: async (PlaceCart,userId)=>{
-            const placeCart = await PlaceCart.findOne({user:userId}).populate('places.id','-hotels -attractions');
-            
-            return placeCart;
+        getUserCart: async (PlaceCart,HotelCart,FlightCart,userId)=>{
+            if(typeof PlaceCart!=="undefined"){
+                var placeCart = await PlaceCart.findOne({user:userId}).populate('places.id','-hotels -attractions');
+            }
+            if(typeof HotelCart!=="undefined"){
+                var hotelCart = await HotelCart.findOne({user:userId}).populate('hotels.hotelId',"-image -rooms -reviews").populate("hotels.roomId",'-hotelId -roomReservations');
+            }
+            if(typeof FlightCart!=="undefined"){
+                var flightCart = await FlightCart.findOne({user:userId}).populate("flights.flightId");
+            }
+            return {
+                placeCart: placeCart,
+                hotelCart:hotelCart,
+                flightCart:flightCart
+            };
         }
     },
     middleware:{
