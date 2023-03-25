@@ -416,7 +416,7 @@ app.post("/cart/places",middleware.isLoggedIn,async (req,res)=>{
         }else{
             console.log("placeCart");
             console.log(placeCart);
-            placeCart.items.push({id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)});
+            placeCart.places.push({id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)});
         }
         await placeCart.save();
         res.json({status:200,message:"Added to cart"});
