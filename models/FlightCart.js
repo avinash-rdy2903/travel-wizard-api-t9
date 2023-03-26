@@ -9,7 +9,6 @@ const FlightCartSchema = new mongoose.Schema({
             type:mongoose.Schema.Types.ObjectId,
             ref:"Flight"
         },
-        seats:Number,
         date:Date
     }]
 })

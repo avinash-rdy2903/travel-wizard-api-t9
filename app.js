@@ -132,11 +132,13 @@ app.post('/auth/local',passport.authenticate('local',{
     
     let {placeCart,hotelCart,flightCart} = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
     
-    let username = req.user.username;
+    let user = req.user;
     if(req.user.provider==='google'){
-        username = req.user._json.given_name;
+        user = req.user._json;
+    }else{
+        user = await User.findOne({credId:req.user._id},"-otpId");
     }
-    res.json({status:200,username:username,flightCart:flightCart,hotelCart:hotelCart,placeCart:placeCart});
+    res.json({status:200,user:user,flightCart:flightCart,hotelCart:hotelCart,placeCart:placeCart});
 })
 app.get('/login/:action',async (req,res)=>{
     if(req.params.action==='failure'){
@@ -278,12 +280,16 @@ app.post('/otp/email',async (req,res)=>{
         await otp.save();
         res.json({status:200,message:"Otp has been delivered"});
     }catch(err){ 
-        res.json({status:400,message:err.message});
+        res.status(400).json({status:400,message:err.message});
     }
 })
 app.get("/logout",(req,res)=>{
     try{
-        req.logout();
+        req.logout((err)=>{
+            if(err){
+                res.status(400).json({status:400,message:err.message});
+            }
+        });
         res.json({status:200,message:"logout successful"});
     }catch(err){
         console.log(err.stack);
@@ -407,16 +413,17 @@ app.get('/flights',async (req,res)=>{
 })
 
 app.post("/cart/places",middleware.isLoggedIn,async (req,res)=>{
+    console.log("adding to cart");
     const userId = req.session.passport.user._id;
     try{
         var {placeCart} = await helper.getUserCart(PlaceCart,undefined,undefined,userId);
         console.log(placeCart);
          if(placeCart==null){
-            placeCart = await PlaceCart.create({user:userId,items:[{id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)}]});
+            placeCart = await PlaceCart.create({user:userId,places:[{id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)}]});
         }else{
             console.log("placeCart");
             console.log(placeCart);
-            placeCart.items.push({id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)});
+            placeCart.places.push({id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)});
         }
         await placeCart.save();
         res.json({status:200,message:"Added to cart"});
@@ -424,6 +431,51 @@ app.post("/cart/places",middleware.isLoggedIn,async (req,res)=>{
         console.log(e.stack);
         console.log(e.message);
         res.json({status:400,message:e.message});
+    }
+})
+app.post("/cart/hotels", middleware.isLoggedIn, async (req, res) => {
+    const userId = req.session.passport.user._id;
+    console.log("Into the the hotels cart")
+    try {
+        var { hotelCart } = await helper.getUserCart(undefined, HotelCart, undefined, userId);
+        console.log(hotelCart);
+        if (hotelCart == null) {
+            console.log(req)
+            hotelCart = await HotelCart.create({ user: userId, hotels: [{ hotel: req.body.hotelId, room: req.body.roomId, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate)}] });
+        } else {
+            console.log("hotelCart");
+            console.log(hotelCart);
+            hotelCart.hotels.push({ hotel: req.body.hotelId, room: req.body.roomId, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate) });
+        }
+        await hotelCart.save();
+        res.json({ status: 200, message: "Added to cart" });
+    } catch (e) {
+        console.log(e.stack);
+        console.log(e.message);
+        res.json({ status: 400, message: e.message });
+    }
+})
+
+app.post("/cart/flights", middleware.isLoggedIn, async (req, res) => {
+    const userId = req.session.passport.user._id;
+    console.log("Into the flights cart")
+    try {
+        var { flightCart } = await helper.getUserCart(undefined, undefined, FlightCart, userId);
+        console.log(flightCart);
+        if (flightCart == null) {
+            console.log(req)
+            flightCart = await FlightCart.create({ user: userId, flights: [{ flight: req.body.flightId, seats:req.body.seatNumber, date: new Date(req.body.date) }] });
+        } else {
+            console.log("flightCart");
+            console.log(flightCart);
+            flightCart.flights.push({ flight: req.body.flightId, seats: req.body.seatNumber, date: new Date(req.body.date)});
+        }
+        await flightCart.save();
+        res.json({ status: 200, message: "Added to cart" });
+    } catch (e) {
+        console.log(e.stack);
+        console.log(e.message);
+        res.json({ status: 400, message: e.message });
     }
 })
 app.listen(PORT, () => {
