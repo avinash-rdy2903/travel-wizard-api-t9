@@ -24,14 +24,15 @@ module.exports = {
             return count;
         },
         getUserCart: async (PlaceCart,HotelCart,FlightCart,userId)=>{
+            
             if(typeof PlaceCart!=="undefined"){
-                var placeCart = await PlaceCart.findOne({user:userId}).populate('places.id','-hotels -attractions');
+                var placeCart = await PlaceCart.findOne({user:userId}).populate('places.place','-hotels -attractions');
             }
             if(typeof HotelCart!=="undefined"){
-                var hotelCart = await HotelCart.findOne({user:userId}).populate('hotels.hotelId',"-image -rooms -reviews").populate("hotels.roomId",'-hotelId -roomReservations');
+                var hotelCart = await HotelCart.findOne({user:userId}).populate('hotels.hotel',"-image -rooms -reviews").populate("hotels.room",'-hotelId -roomReservations');
             }
             if(typeof FlightCart!=="undefined"){
-                var flightCart = await FlightCart.findOne({user:userId}).populate("flights.flightId");
+                var flightCart = await FlightCart.findOne({user:userId}).populate("flights.flight");
             }
             return {
                 placeCart: placeCart,
@@ -45,7 +46,7 @@ module.exports = {
             if(req.session.passport!==undefined){
                 return next();
             }
-            res.json({status:400,message:"User must be logged in!!"});
+            res.status(400).json({status:400,message:"User must be logged in!!"});
         }
     }
 }

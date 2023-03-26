@@ -14,7 +14,8 @@ var userSchema = new mongoose.Schema({
     verified:{type:Boolean, required:true},
     credId:{
 		type: mongoose.Schema.Types.ObjectId,
-		ref:'Credentials'
+		ref:'Credentials',
+        unique:true
 	},
     otpID:{type:mongoose.Schema.Types.ObjectId, ref:'otp'}
 });

@@ -5,11 +5,10 @@ const FlightCartSchema = new mongoose.Schema({
         ref:"User"
     },
     flights:[{
-        flightId:{
+        flight:{
             type:mongoose.Schema.Types.ObjectId,
             ref:"Flight"
         },
-        seats:Number,
         date:Date
     }]
 })
