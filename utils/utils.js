@@ -24,10 +24,7 @@ module.exports = {
             return count;
         },
         getUserCart: async (PlaceCart,HotelCart,FlightCart,userId)=>{
-            console.log(PlaceCart);
-            console.log(HotelCart);
-            console.log(FlightCart);
-
+            
             if(typeof PlaceCart!=="undefined"){
                 var placeCart = await PlaceCart.findOne({user:userId}).populate('places.place','-hotels -attractions');
             }

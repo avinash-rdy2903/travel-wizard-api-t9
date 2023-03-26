@@ -19,7 +19,7 @@ credentials.methods = {
 	}
 }
 credentials.pre('save', function(next) {
-	console.log(this);
+	// console.log(this);
 	if (!this.password) {
 		console.log('=======NO PASSWORD PROVIDED=======')
 		next()
