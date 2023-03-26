@@ -4,7 +4,7 @@
   "description": "tour management system",
   "main": "app.js",
   "scripts": {
-    "start":"npm app"
+    "start":"node app",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Avinash, Meghana, Sandy, Siddanth, Tharun",
