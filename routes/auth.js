@@ -14,6 +14,9 @@ const User = require('../models/userDetails'),
     PlaceCart = require('../models/placeCart'),
     HotelCart = require('../models/hotelCart'),
     FlightCart = require('../models/flightCart');
+
+const { middleware , helper }= require('../utils/utils');
+
 router.post('/local',authPassport.authenticate('local',{
     failureRedirect:'/auth/login/failure',
 }),async (req,res)=>{
