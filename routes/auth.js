@@ -14,13 +14,12 @@ const User = require('../models/userDetails'),
     PlaceCart = require('../models/placeCart'),
     HotelCart = require('../models/hotelCart'),
     FlightCart = require('../models/flightCart');
-
 const { middleware , helper }= require('../utils/utils');
 
 router.post('/local',authPassport.authenticate('local',{
     failureRedirect:'/auth/login/failure',
 }),async (req,res)=>{
-    
+    // console.log(suc)
     let {placeCart,hotelCart,flightCart} = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
     
     let user = req.user;
@@ -33,6 +32,7 @@ router.post('/local',authPassport.authenticate('local',{
 })
 router.get('/login/:action',async (req,res)=>{
     if(req.params.action==='failure'){
+        console.log(req.body);
         console.log("failed login");
         res.status(400).json({status:401,redirect:'/login',message:"Auth failed"})
     }else{

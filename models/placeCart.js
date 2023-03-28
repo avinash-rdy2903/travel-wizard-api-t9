@@ -6,10 +6,10 @@ const placeCart = new mongoose.Schema({
         unique:true
     },
     places:[{
-        
        place: {
             type:mongoose.Schema.Types.ObjectId,
-            ref:"Place"
+            ref:"Place",
+            unique:true
         },
         visitingDate:Date,
     }],

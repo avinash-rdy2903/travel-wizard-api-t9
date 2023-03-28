@@ -2,11 +2,14 @@ require('dotenv').config();
 const passport = require('passport'),
      localStrategy = require('passport-local').Strategy,
      googleStrategy = require('passport-google-oauth20').Strategy;
-const Credentials = require("../models/credentials");
+const Credentials = require("../models/credentials"),
+	User = require('../models/userDetails');
 passport.serializeUser((user, done) => {
+	// console.log(user);
 	done(null, { _id: user._id })
 })
 passport.deserializeUser((id, done) => {
+	
 	Credentials.findOne(
 		{ _id: id },
 		'username',

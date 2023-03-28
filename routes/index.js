@@ -42,9 +42,8 @@ router.post('/register',async (req,res)=>{
         };
         let info = await transporter.sendMail(mailOptions);
         await user.save();
-        authPassport.authenticate('local')(req, res, ()=>{
-            res.json({status:200,redirect:'/',message:"user created"})
-        });
+        console.log("user registered");
+        res.status(200).json({status:200,message:"user created, please confirm your email ID"});
     }catch(err){
         console.log(err);
         User.remove({ email: req.body.email }, function(err) {

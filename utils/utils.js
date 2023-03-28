@@ -34,6 +34,7 @@ module.exports = {
             if(typeof FlightCart!=="undefined"){
                 var flightCart = await FlightCart.findOne({user:userId}).populate("flights.flight");
             }
+            console.log(placeCart);
             return {
                 placeCart: placeCart,
                 hotelCart:hotelCart,

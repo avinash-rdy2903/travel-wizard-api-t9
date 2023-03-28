@@ -48,7 +48,7 @@ app.use(authPassport.session());
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 app.get('/', (req, res) => {
-    res.send(`<div>This route is only for API calls, visit <a href=${process.env.CLIENT_URL}>Travel Wizard.</a></div>`);
+    res.send('<div><a href=/login>Login</a></div><a href=/register>register</a>');
 })
 app.use("/",require("./routes/index"));
 app.use("/auth",require("./routes/auth"));
@@ -71,7 +71,7 @@ app.get('/search/:key', async (req,res)=>{
     try{
         const place = await Place.find({
             "$or":[{name:{$regex:'^'+req.params.key,$options:"i"}}]
-        },['name','_id']);
+        },['name','_id']).populate("attractions");
         res.send(place);
     }catch(e){
         console.log(e.stack);

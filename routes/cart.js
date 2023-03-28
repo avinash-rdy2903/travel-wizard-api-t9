@@ -14,12 +14,12 @@ router.post("/places",middleware.isLoggedIn,async (req,res)=>{
     try{
         var {placeCart} = await helper.getUserCart(PlaceCart,undefined,undefined,userId);
          if(placeCart==null){
-            placeCart = await PlaceCart.create({user:userId,places:[{id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)}]});
+            placeCart = await PlaceCart.create({user:userId,places:[{place:req.body.placeId,visitingDate:new Date(req.body.visitingDate)}]});
         }else{
-            placeCart.places.push({id:req.body.placeId,visitingDate:new Date(req.body.visitingDate)});
+            placeCart.places.push({place:req.body.placeId,visitingDate:new Date(req.body.visitingDate)});
         }
         await placeCart.save();
-        res.json({status:200,message:"Added to cart"});
+        res.json({status:200,placeCart:placeCart});
     }catch(e){
         console.log(e.stack);
         res.json({status:400,message:e.message});
@@ -35,7 +35,7 @@ router.post("/hotels", middleware.isLoggedIn, async (req, res) => {
             hotelCart.hotels.push({ hotel: req.body.hotelId, room: req.body.roomId, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate) });
         }
         await hotelCart.save();
-        res.json({ status: 200, message: "Added to cart" });
+        res.json({ status: 200, hotelCart:hotelCart });
     } catch (e) {
         console.log(e.stack);
         res.json({ status: 400, message: e.message });
@@ -47,12 +47,12 @@ router.post("/flights", middleware.isLoggedIn, async (req, res) => {
     try {
         var { flightCart } = await helper.getUserCart(undefined, undefined, FlightCart, userId);
         if (flightCart == null) {
-            flightCart = await FlightCart.create({ user: userId, flights: [{ flight: req.body.flightId, seats:req.body.seatNumber, date: new Date(req.body.date) }] });
+            flightCart = await FlightCart.create({ user: userId, flights: [{ flight: req.body.flightId,  date: new Date(req.body.date) }] });
         } else {
             flightCart.flights.push({ flight: req.body.flightId, seats: req.body.seatNumber, date: new Date(req.body.date)});
         }
         await flightCart.save();
-        res.json({ status: 200, message: "Added to cart" });
+        res.json({ status: 200, flightCart:flightCart });
     } catch (e) {
         console.log(e.stack);
         res.json({ status: 400, message: e.message });
