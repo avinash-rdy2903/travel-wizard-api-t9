@@ -2,14 +2,13 @@ const mongoose = require('mongoose');
 const placeCart = new mongoose.Schema({
     user:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"User",
+        ref:"Credentials",
         unique:true
     },
     places:[{
        place: {
             type:mongoose.Schema.Types.ObjectId,
-            ref:"Place",
-            unique:true
+            ref:"Place"
         },
         visitingDate:Date,
     }],

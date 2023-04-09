@@ -11,6 +11,7 @@ const User = require('./models/userDetails'),
     Otp = require('./models/otp'),
     RoomReservation = require('./models/roomReservation'),
     Place = require('./models/place'),
+    ItineraryComments = require('./models/itineraryComments'),
     PlaceCart = require('./models/placeCart'),
     Attraction = require('./models/attraction'),
     Hotel = require('./models/hotel'),
@@ -48,7 +49,7 @@ app.use(authPassport.session());
 app.use(express.json());
 app.use(express.urlencoded({extended:true}));
 app.get('/', (req, res) => {
-    res.send('<div><a href=/login>Login</a></div><a href=/register>register</a>');
+    res.send(`<div>This route is only for API calls, visit <a href=/${process.env.CLIENT_URL}>Travel Wizard.</a></div>`);
 })
 app.use("/",require("./routes/index"));
 app.use("/auth",require("./routes/auth"));

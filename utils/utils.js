@@ -34,12 +34,34 @@ module.exports = {
             if(typeof FlightCart!=="undefined"){
                 var flightCart = await FlightCart.findOne({user:userId}).populate("flights.flight");
             }
-            console.log(placeCart);
+            // console.log(placeCart);
             return {
                 placeCart: placeCart,
                 hotelCart:hotelCart,
                 flightCart:flightCart
             };
+        },
+        getPrimaryItinerary: async (PrimaryItinerary,userId)=>{
+            try{
+                const filter = {user:userId};
+                var primaryItinerary = await PrimaryItinerary.findOne(filter).populate("placeCart hotelCart flightCart comments");
+                if(primaryItinerary==null){
+                    primaryItinerary = await PrimaryItinerary.create(filter);
+                }
+                // console.log("here");
+                // console.log(primaryItinerary);
+                return primaryItinerary;
+            }catch(e){
+                console.error(e.stack);
+                throw new Error(e.message);
+            }
+        },
+        populatePrimaryItinerary: async (primaryItinerary)=>{
+            primaryItinerary = await primaryItinerary.populate("placeCart.places.place","-hotels -attractions");
+            primaryItinerary = await primaryItinerary.populate('hotelCart.hotels.hotel',"-image -rooms -reviews");
+            primaryItinerary = await primaryItinerary.populate("hotelCart.hotels.room",'-hotelId -roomReservations');
+            primaryItinerary = await primaryItinerary.populate("flightCart.flights.flight");
+            return primaryItinerary;
         }
     },
     middleware:{

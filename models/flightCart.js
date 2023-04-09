@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 const FlightCartSchema = new mongoose.Schema({
     user:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"User"
+        ref:"Credentials",
+        unique:true
     },
     flights:[{
         flight:{

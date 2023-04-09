@@ -11,6 +11,7 @@ const router = express.Router();
 const User = require('../models/userDetails'),
     Credentials = require('../models/credentials'),
     Otp = require('../models/otp'),
+    PrimaryItinerary = require('../models/primaryItinerary'),
     PlaceCart = require('../models/placeCart'),
     HotelCart = require('../models/hotelCart'),
     FlightCart = require('../models/flightCart');
@@ -20,15 +21,18 @@ router.post('/local',authPassport.authenticate('local',{
     failureRedirect:'/auth/login/failure',
 }),async (req,res)=>{
     // console.log(suc)
-    let {placeCart,hotelCart,flightCart} = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
-    
+    // let {placeCart,hotelCart,flightCart} = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
+    var primaryItinerary = await helper.getPrimaryItinerary(PrimaryItinerary,req.user._id);
     let user = req.user;
     if(req.user.provider==='google'){
         user = req.user._json;
     }else{
         user = await User.findOne({credId:req.user._id},"-otpId");
     }
-    res.json({status:200,user:user,flightCart:flightCart,hotelCart:hotelCart,placeCart:placeCart});
+    // await primaryItinerary;
+    primaryItinerary = await helper.populatePrimaryItinerary(primaryItinerary);
+    res.status(200).json({status:200,user:user,placeCart:primaryItinerary.placeCart || {},hotelCart:primaryItinerary.hotelCart || {},flightCart:primaryItinerary.flightCart || {},comments:primaryItinerary.comments});
+
 })
 router.get('/login/:action',async (req,res)=>{
     if(req.params.action==='failure'){
@@ -36,12 +40,18 @@ router.get('/login/:action',async (req,res)=>{
         console.log("failed login");
         res.status(400).json({status:401,redirect:'/login',message:"Auth failed"})
     }else{
-        let {placeCart,hotelCart,flightCart} = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
-        let username = req.user.username;
+        // let {placeCart,hotelCart,flightCart} = await helper.getUserCart(PlaceCart,HotelCart,FlightCart,req.user._id);
+        const primaryItinerary = helper.getPrimaryItinerary(PrimaryItinerary,req.user._id);
+        let user = req.user;
         if(req.user.provider==='google'){
-            username = req.user._json.given_name;
+            user = req.user._json;
+        }else{
+            user = await User.findOne({credId:req.user._id},"-otpId");
         }
-        res.json({status:200,username:username,flightCart:flightCart,hotelCart:hotelCart,placeCart:placeCart});
+        primaryItinerary = await helper.populatePrimaryItinerary(primaryItinerary);
+        // res.status(200).json({status:200,user:user,placeCart:primaryItinerary.placeCart,hotelCart:primaryItinerary.hotelCart,flightCart:primaryItinerary.flightCart,comments:primaryItinerary.comments});
+        res.status(200).json({status:200,user:user,placeCart:primaryItinerary.placeCart || {},hotelCart:primaryItinerary.hotelCart || {},flightCart:primaryItinerary.flightCart || {},comments:primaryItinerary.comments});
+
     }
 })
 router.get('/google',authPassport.authenticate('google', {
@@ -82,20 +92,23 @@ router.get('/verify/email/:id/:token',async (req,res)=>{
 })
 router.post('/otp/verify',async (req,res)=>{
     try{
-        console.log(req.body);
         const otp = await Otp.findOne({otp:req.body.otp});
         if(otp==null){
             res.json({status:400,message:"Invalid Otp"});
         }
         const user = await User.findOne({email:otp.email});
-        const cred = await Credentials.findById(user.credId);
-        let username = cred.username;
-        await Credentials.remove({_id:cred.id});
-        const newCred = await Credentials.create({username:req.body.username,password:req.body.password});
-        user.credId = newCred.id;
-        await user.save();
+        const update = {password:req.body.password};
+        const cred = await Credentials.findByIdAndUpdate(user.credId,update);
+        await cred.save();
+        await Otp.remove({_id:otp.id});
+        // let username = cred.username;
+        // await Credentials.remove({_id:cred.id});
+        // const newCred = await Credentials.create({username:username,password:req.body.password});
+        // user.credId = newCred.id;
+        // await user.save();
         res.json({status:200,redirect:'/',message:'Password reset complete'});
     }catch(err){
+        console.log(err.stack);
         res.status(400).json({status:400,message:err.message});
     }
 })
@@ -110,7 +123,7 @@ router.post('/otp/generate',async (req,res)=>{
             from: process.env.ADMIN_EMAIL,
             to: user.email,
             subject: 'Travel Wizard OTP',
-            html: `<h3>Hello ${user.ln}</h3><div> Please use the OTP:${otpGen} to reset password.</div><div>Thank you for joining Travel Wizard</div>`
+            html: `<h3>Hello ${user.ln}</h3><div> Please use the OTP:${otpGen} to reset password.</div><div>Thank you for using our services.</div>`
         };
         let info = await transporter.sendMail(mailOptions);
         let otp = await Otp.findOne({ email:req.body.email});
