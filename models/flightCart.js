@@ -10,7 +10,8 @@ const FlightCartSchema = new mongoose.Schema({
             type:mongoose.Schema.Types.ObjectId,
             ref:"Flight"
         },
-        date:Date
+        date: Date,
+        bookedStatus: Boolean
     }]
 })
 module.exports = mongoose.model('FlightCart',FlightCartSchema);

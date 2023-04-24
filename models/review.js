@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Review = new mongoose.Schema({
-    ratings:Number,
-    comment:String
+    rating:Number,
+    comment:String,
+    author:String
 })
 module.exports = mongoose.model('Review',Review);

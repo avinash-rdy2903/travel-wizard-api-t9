@@ -69,6 +69,7 @@ module.exports = {
             if(req.session.passport!==undefined){
                 return next();
             }
+            console.log("not logged in");
             res.status(400).json({status:400,message:"User must be logged in!!"});
         }
     }

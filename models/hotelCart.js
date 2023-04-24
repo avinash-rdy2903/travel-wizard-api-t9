@@ -15,7 +15,8 @@ const HotelCartSchema = new mongoose.Schema({
             ref:"Room"
         },
         startDate:Date,
-        endDate:Date
+        endDate: Date,
+        bookedStatus: Boolean
     }]
 })
 module.exports = mongoose.model('HotelCart',HotelCartSchema);

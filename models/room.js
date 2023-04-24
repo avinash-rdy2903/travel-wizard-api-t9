@@ -4,15 +4,15 @@ const Room = new mongoose.Schema({
     price:Number,
     hotelId:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:'roomtype'
+        ref:'Hotel'
     },
     roomReservations:[{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"roomReservation"
+        ref:"RoomReservation"
     }],
     roomType:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:'roomtype'
+        ref:'Roomtype'
     }
 })
 
