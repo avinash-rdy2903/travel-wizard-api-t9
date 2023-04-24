@@ -7,7 +7,8 @@ const User = require('../models/userDetails'),
     PlaceCart = require('../models/placeCart'),
     HotelCart = require('../models/hotelCart'),
     FlightCart = require('../models/flightCart'),
-    PrimaryItinerary = require('../models/primaryItinerary');
+    PrimaryItinerary = require('../models/primaryItinerary'),
+    ItineraryComments = require('../models/itineraryComments');
 
 const { middleware , helper }= require('../utils/utils'),
     transporter = require('../utils/mailTransporter');
@@ -38,18 +39,19 @@ router.post("/places",middleware.isLoggedIn,async (req,res)=>{
 })
 router.post("/hotels", middleware.isLoggedIn, async (req, res) => {
     const userId = req.session.passport.user._id;
+    
     try {
         var { hotelCart } = await helper.getUserCart(undefined, HotelCart, undefined, userId);
         let primaryItinerary = await helper.getPrimaryItinerary(PrimaryItinerary,userId);
         if (hotelCart == null) {
-            hotelCart = await HotelCart.create({ user: userId, hotels: [{ hotel: req.body.hotelId, room: req.body.roomId, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate)}] });
+            hotelCart = await HotelCart.create({ user: userId, hotels: [{ hotel: req.body.hotelId, room: req.body.roomId, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate), bookedStatus: false}] });
             primaryItinerary.hotelCart = hotelCart._id;
             await primaryItinerary.save();
         } else {
-            hotelCart.hotels.push({ hotel: req.body.hotelId, room: req.body.roomId, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate) });
+            hotelCart.hotels.push({ hotel: req.body.hotelId, room: req.body.roomId, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate),bookedStatus: false });
         }
         await hotelCart.save();
-        hotelCart = await hotelCart.populate('hotels.hotel',"-image -rooms -reviews").populate("hotels.room",'-hotelId -roomReservations');
+        // hotelCart = await hotelCart.populate('hotels.hotel',"-image -rooms -reviews").populate("hotels.room",'-hotelId -roomReservations');
         res.json({ status: 200, hotelCart:hotelCart });
     } catch (e) {
         console.log(e.stack);
@@ -77,8 +79,23 @@ router.post("/flights", middleware.isLoggedIn, async (req, res) => {
         res.json({ status: 400, message: e.message });
     }
 })
-router.post("/comment",middleware.isLoggedIn,async (req,res)=>{
+router.post("/comment", middleware.isLoggedIn, async (req, res) => {
+    const userId = req.session.passport.user._id;
 
+    try {
+        var itineraryComments ;
+        itineraryComments = await ItineraryComments.create({ author: { id: userId, username: req.user.username }, text: req.body.comment });
+        await itineraryComments.save();
+        let primaryItinerary = await helper.getPrimaryItinerary(PrimaryItinerary, userId);
+        primaryItinerary.comments.push(itineraryComments._id);
+        await primaryItinerary.save();
+        res.status(200).json({ status: 200, message: "Your Comment posted successfully" })
+    } catch (e) {
+        console.log(e.stack);
+        res.json({ status: 400, message: e.message });
+    }
+
+   
 })
 router.get("/share",middleware.isLoggedIn,async (req,res)=>{
     let shareeEmail = req.query.email;
@@ -121,4 +138,76 @@ router.get("/shared-itinerary",middleware.isLoggedIn,async (req,res)=>{
         res.status(400).json({status:400,message:e.message});
     }
 })
+router.delete("/comment/:commentId", middleware.isLoggedIn, async (req, res) => {
+    const userId = req.session.passport.user._id;
+
+    try {
+        var deleteComment = await ItineraryComments.findById(req.params.commentId);
+        console.log("deleteComment", deleteComment)
+        if (userId == deleteComment.author.id) {
+            var primaryItineraryUser = await PrimaryItinerary.findOne({ user: req.session.passport.user._id});
+            primaryItineraryUser.comments = primaryItineraryUser.comments.filter(comment => comment._id.toString() !== req.params.commentId.toString());
+            await primaryItineraryUser.save();
+            await ItineraryComments.findByIdAndDelete(req.params.commentId);
+        }       
+        res.status(200).json({ status: 200, message: "Your comment has been Deleted" })
+    } catch (e) {
+        console.log(e.stack);
+        res.json({ status: 400, message: e.message });
+    }
+
+
+})
+router.delete("/hotels/:hotelsId", middleware.isLoggedIn, async (req, res) => {
+    const userId = req.session.passport.user._id;
+
+    try {
+        var deletehotel = await HotelCart.findOne({ user: req.session.passport.user._id });
+        if (userId == deletehotel.user) {
+            deletehotel.hotels = deletehotel.hotels.filter(hotel => hotel._id.toString() !== req.params.hotelsId.toString());
+            await deletehotel.save();
+        }
+        res.status(200).json({ status: 200, message: "Your Added hotel has been deleted" })
+    } catch (e) {
+        console.log(e.stack);
+        res.json({ status: 400, message: e.message });
+    }
+
+
+})
+router.delete("/places/:placesId", middleware.isLoggedIn, async (req, res) => {
+    const userId = req.session.passport.user._id;
+
+    try {
+        var deleteplace = await PlaceCart.findOne({ user: req.session.passport.user._id });
+        if (userId == deleteplace.user) {
+            deleteplace.places = deleteplace.places.filter(place => place._id.toString() !== req.params.placesId.toString());
+            await deleteplace.save();
+        }
+        res.status(200).json({ status: 200, message: "Your Added place has been deleted" })
+    } catch (e) {
+        console.log(e.stack);
+        res.json({ status: 400, message: e.message });
+    }
+
+
+})
+router.delete("/flights/:flightsId", middleware.isLoggedIn, async (req, res) => {
+    const userId = req.session.passport.user._id;
+
+    try {
+        var deleteflights = await FlightCart.findOne({ user: req.session.passport.user._id });
+        if (userId == deleteflights.user) {
+            deleteflights.flights = deleteflights.flights.filter(flight => flight._id.toString() !== req.params.flightsId.toString());
+            await deleteflights.save();
+        }
+        res.status(200).json({ status: 200, message: "Your Added flight has been deleted" })
+    } catch (e) {
+        console.log(e.stack);
+        res.json({ status: 400, message: e.message });
+    }
+
+
+})
+
 module.exports = router;

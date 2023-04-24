@@ -9,10 +9,13 @@ const User = require('../models/userDetails'),
     RoomReservation = require('../models/roomReservation'),
     Place = require('../models/place'),
     Hotel = require('../models/hotel'),
+    RoomType = require('../models/roomType'),
+    Review = require('../models/review'),
     Flight = require('../models/flight');
 
 
 const { middleware , helper }= require('../utils/utils');
+const hotel = require('../models/hotel');
 const router = express.Router();
 router.post('/register',async (req,res)=>{
     let creds=null,user=null;
@@ -88,16 +91,14 @@ router.get("/hotels",async (req,res) => {
         let hotels = await Hotel.find({
             '_id':{ $in: hotelIds.hotels},
             avgRating:{ $gte:new Number(req.query.rating) || 0 }
-        }).populate('rooms');
-        // await hotels;
-        console.log(hotels);
+        }).populate('rooms reviews');
         for(let i=0;i<hotels.length;i++){
             let hotel = hotels[i];
             var count = 0;
             for(let j=0;j<hotel.rooms.length;j++){
                 let room = hotel.rooms[j];
                 if(room.price<minPrice || room.price>maxPrice){
-                    console.log("price if");
+                    // console.log("price if");
                     continue;
                 }
                 let roomReservations = RoomReservation.find({roomId:room.id}).populate("reservationId").cursor();                
@@ -114,6 +115,16 @@ router.get("/hotels",async (req,res) => {
         console.log(e.stack);
         res.status(400).json({status:400,data:e.message});
     }
+});
+router.get("/roomType/:id",async (req,res)=>{
+    try{
+        let type = await RoomType.findById(req.params.id);
+        res.status(200).json({status:200,roomType:type});
+    
+    }catch(e){
+        console.log(e);
+        res.status(400).json({status:400,data:e.message});
+    }
 })
 router.get('/flights',async (req,res)=>{
     try{
@@ -128,6 +139,20 @@ router.get('/flights',async (req,res)=>{
     }catch(err){
         console.log(err.stack);
         res.status(400).json({status:400,message:err.message});
+    }
+})
+router.post("/hotels/review/:id",middleware.isLoggedIn,async (req,res)=>{
+    try{
+        let hotel = await Hotel.findById(req.params.id);
+        let review = await Review.create({rating:req.body.rating,comment:req.body.comment,author:req.user.username});
+        hotel.reviews.push(review._id);
+        let newAvgRating = hotel.avgRating+(review.rating/(hotel.reviews.length || 1));
+        hotel.avgRating = newAvgRating;
+        await hotel.save();
+        return res.status(200).json({status:200,newReview:review});
+    }catch(e){
+        console.log(e);
+        return res.status(400).json({status:400,message:e.message});
     }
 })
 

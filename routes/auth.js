@@ -30,9 +30,10 @@ router.post('/local',authPassport.authenticate('local',{
         user = await User.findOne({credId:req.user._id},"-otpId");
     }
     // await primaryItinerary;
+    // console.log(req);
     primaryItinerary = await helper.populatePrimaryItinerary(primaryItinerary);
     res.status(200).json({status:200,user:user,placeCart:primaryItinerary.placeCart || {},hotelCart:primaryItinerary.hotelCart || {},flightCart:primaryItinerary.flightCart || {},comments:primaryItinerary.comments});
-
+    // console.log(res);
 })
 router.get('/login/:action',async (req,res)=>{
     if(req.params.action==='failure'){
