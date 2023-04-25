@@ -80,6 +80,7 @@ app.get('/search/:key', async (req,res)=>{
     }
 })
 app.use("/cart",require("./routes/cart"));
+app.use("/book",require("./routes/book"));
 app.listen(PORT, () => {
     console.log('listening on port ' + PORT);
 });

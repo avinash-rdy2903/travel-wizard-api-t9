@@ -13,7 +13,7 @@ module.exports = {
                 let reservation = i.reservationId;
                 console.log("here");
                 fl=false;
-                if((reservation.startDate<start && start < reservation.endDate) || (reservation.startDate<end && end < reservation.endDate)){
+                if(reservation==undefined || (reservation.startDate<start && start < reservation.endDate) || (reservation.startDate<end && end < reservation.endDate)){
                     break;
                 }
                 count+=1;
@@ -58,10 +58,24 @@ module.exports = {
         },
         populatePrimaryItinerary: async (primaryItinerary)=>{
             primaryItinerary = await primaryItinerary.populate("placeCart.places.place","-hotels -attractions");
-            primaryItinerary = await primaryItinerary.populate('hotelCart.hotels.hotel',"-image -rooms -reviews");
-            primaryItinerary = await primaryItinerary.populate("hotelCart.hotels.room",'-hotelId -roomReservations');
+            primaryItinerary = await primaryItinerary.populate('hotelCart.hotels');
+            // primaryItinerary = await primaryItinerary.populate("hotelCart.hotels.room",'-hotelId -roomReservations');
             primaryItinerary = await primaryItinerary.populate("flightCart.flights.flight");
+            console.log(primaryItinerary);
             return primaryItinerary;
+        },
+        successfullLogin: async (req,PrimaryItinerary,User,helper)=>{
+            var primaryItinerary = await helper.getPrimaryItinerary(PrimaryItinerary,req.user._id);
+            let user = req.user;
+            if(req.user.provider==='google'){
+                user = req.user._json;
+            }else{
+                user = await User.findOne({credId:req.user._id},"-otpId");
+            }
+            // console.log(user);
+            // await primaryItinerary;
+            primaryItinerary = await helper.populatePrimaryItinerary(primaryItinerary);
+            return {primaryItinerary,user};
         }
     },
     middleware:{

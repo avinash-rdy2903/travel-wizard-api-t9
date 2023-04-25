@@ -17,6 +17,13 @@ var userSchema = new mongoose.Schema({
 		ref:'Credentials',
         unique:true
 	},
+    securityQuestion:{
+        question:{
+            type:mongoose.Schema.Types.ObjectId,
+            ref:"SecurityQuestions"
+        },
+        answer:String
+    },
     otpID:{type:mongoose.Schema.Types.ObjectId, ref:'otp'}
 });
 module.exports=mongoose.model("User",userSchema);

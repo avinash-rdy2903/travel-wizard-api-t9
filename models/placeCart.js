@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const placeCart = new mongoose.Schema({
     user:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"Credentials",
+        ref:"User",
         unique:true
     },
     places:[{

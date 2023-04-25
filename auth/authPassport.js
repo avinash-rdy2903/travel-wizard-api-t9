@@ -4,20 +4,13 @@ const passport = require('passport'),
      googleStrategy = require('passport-google-oauth20').Strategy;
 const Credentials = require("../models/credentials"),
 	User = require('../models/userDetails');
-passport.serializeUser((user, done) => {
-	// console.log(user);
-	done(null, { _id: user._id })
-})
-passport.deserializeUser((id, done) => {
-	
-	Credentials.findOne(
-		{ _id: id },
-		'username',
-		(err, user) => {
-			done(null, user)
-		}
-	)
-})
+passport.serializeUser(function(user, done) {
+	return done(null, user);
+});
+
+passport.deserializeUser(function(obj, done) {
+	return done(null, obj);
+});
 passport.use(new localStrategy(
 	{
 		usernameField: 'username'
@@ -50,7 +43,7 @@ passport.use(new googleStrategy({
         user = await User.create({email:googleUser.email,fn:googleUser.given_name,ln:googleUser.family_name,verified:googleUser.email_verified});
     }
     await user.save();    
-    return done(null, profile);
+    return done(null, user);
 }
 ));
 module.exports = passport;

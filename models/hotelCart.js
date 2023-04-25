@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const HotelCartSchema = new mongoose.Schema({
     user:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"Credentials",
+        ref:"User",
         unique:true
     },
     hotels:[{

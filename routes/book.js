@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/userDetails'),
@@ -8,15 +9,24 @@ const User = require('../models/userDetails'),
     HotelCart = require('../models/hotelCart'),
     FlightCart = require('../models/flightCart'),
     flightsData = require('../models/flight'),
+    // Reservation = require('../models/Reservation'),
+    Reservation = mongoose.models.Reservation,
+    Hotel = mongoose.models.Hotel,
+    RoomReservation = require('../models/roomReservation'),
     PrimaryItinerary = require('../models/primaryItinerary'),
     ItineraryComments = require('../models/itineraryComments');
 
-const { middleware, helper } = require('../utils/utils'),
+const {middleware , helper } = require('../utils/utils'),
     transporter = require('../utils/mailTransporter');
 
-router.post("/hotels", middleware.isLoggedIn, async (req, res) => {
-    const userId = req.session.passport.user._id;
+router.post("/hotels", async (req, res) => {
+    const userId = req.body.userId;
+    const user = await User.findById(userId);
     try {
+        let reservation = await Reservation.create({guestId: userId,totalPrice: req.body.totalPrice,startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate)});
+        let roomReservation = await RoomReservation.create({roomId: req.body.roomId,reservationId:reservation._id});
+        reservation.roomReservations.push(roomReservation._id);
+        await reservation.save();
         var { hotelCart } = await helper.getUserCart(undefined, HotelCart, undefined, userId);
         console.log("HotelCart", hotelCart)
         let primaryItinerary = await helper.getPrimaryItinerary(PrimaryItinerary, userId);
@@ -28,8 +38,16 @@ router.post("/hotels", middleware.isLoggedIn, async (req, res) => {
             hotelCart.hotels.push({ hotel: req.body.hotelId, room: req.body.roomId, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate), bookedStatus: true });
         }
         await hotelCart.save();
-        // hotelCart = await hotelCart.populate('hotels.hotel', "-image -rooms -reviews").populate("hotels.room", '-hotelId -roomReservations').execPopulate();;
-        res.json({ status: 200, hotelCart: hotelCart });
+        const hotel = await Hotel.findById(req.body.hotelId);
+        const mailOptions = {
+            from: process.env.ADMIN_EMAIL,
+            to: user.email,
+            subject: 'Booking Confirmation',
+            html: `<h3>Hello ${user.ln}</h3> <div> Thank you for using our service to book your next stay at ${hotel.name} at ${hotel.address}.</div>`
+        };
+        let info = await transporter.sendMail(mailOptions);
+        hotelCart = await hotelCart.populate('hotels.hotel', "-image -rooms -reviews").populate("hotels.room", '-hotelId -roomReservations').execPopulate();;
+        res.json({ status: 200, hotelCart: hotelCart});
     } catch (e) {
         console.log(e.stack);
         res.json({ status: 400, message: e.message });
@@ -38,8 +56,8 @@ router.post("/hotels", middleware.isLoggedIn, async (req, res) => {
 
 
 
-router.post("/flights", middleware.isLoggedIn, async (req, res) => {
-    const userId = req.session.passport.user._id;
+router.post("/flights", async (req, res) => {
+    const userId = req.body.id;
     try {
         var { flightCart } = await helper.getUserCart(undefined, undefined, FlightCart, userId);
         let primaryItinerary = await helper.getPrimaryItinerary(PrimaryItinerary, userId);
@@ -72,11 +90,19 @@ router.post("/flights", middleware.isLoggedIn, async (req, res) => {
         res.json({ status: 400, message: e.message });
     }
 })
-
-router.delete("/cancelflights/:cancelflightId", middleware.isLoggedIn, async (req, res) => {
-    const userId = req.session.passport.user._id;
+router.delete("/cancelhotel/:id",async (req, res) => {
+    const userId = req.body.userId;
+    try{
+        let cancelHotel  = await HotelCart.findOne({userId: userId});
+    }catch(e){
+        console.log(e);
+        res.status(400).json({ status: 400, message: e.message });
+    }
+})
+router.delete("/cancelflights/:cancelflightId", async (req, res) => {
+    const userId = req.body.id;
     try {
-        var cancelflight = await FlightCart.findOne({ user: req.session.passport.user._id });
+        var cancelflight = await FlightCart.findOne({ user:userId});
         if (userId == cancelflight.user) {
             var deletedFlight = cancelflight.flights.find(flight => flight._id.toString() === req.params.cancelflightId.toString());
             cancelflight.flights = cancelflight.flights.filter(flight => flight._id.toString() !== req.params.cancelflightId.toString());

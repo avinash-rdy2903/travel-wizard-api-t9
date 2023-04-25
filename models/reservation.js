@@ -1,10 +1,8 @@
 const mongoose = require('mongoose');
-const Reservation = new mongoose.Schema({
+const ReservationSchema = new mongoose.Schema({
     guestId:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"User",
-        unique:true,
-        index:true
+        ref:"User"
     },
     roomReservations:[{
         type:mongoose.Schema.Types.ObjectId,
@@ -14,4 +12,4 @@ const Reservation = new mongoose.Schema({
     startDate:Date,
     endDate:Date
 })
-module.exports = mongoose.model('Reservation',Reservation);
+module.exports = mongoose.model('Reservation',ReservationSchema);

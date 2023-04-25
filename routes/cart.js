@@ -13,8 +13,8 @@ const User = require('../models/userDetails'),
 const { middleware , helper }= require('../utils/utils'),
     transporter = require('../utils/mailTransporter');
 
-router.post("/places",middleware.isLoggedIn,async (req,res)=>{
-    const userId = req.session.passport.user._id;
+router.post("/places",async (req,res)=>{
+    const userId = req.body.userId;
     try{
         var {placeCart} = await helper.getUserCart(PlaceCart,undefined,undefined,userId);
         var primaryItinerary = await helper.getPrimaryItinerary(PrimaryItinerary,userId);
@@ -22,7 +22,7 @@ router.post("/places",middleware.isLoggedIn,async (req,res)=>{
         // console.log(primaryItinerary);
         if(placeCart==null){
             placeCart = await PlaceCart.create({user:userId,places:[{place:req.body.placeId,visitingDate:new Date(req.body.visitingDate)}]});
-            primaryItinerary.placeCart = (placeCart.id);
+            primaryItinerary.placeCart = (placeCart._id);
             // console.log(primaryItinerary);
             await primaryItinerary.save();      
 
@@ -31,14 +31,15 @@ router.post("/places",middleware.isLoggedIn,async (req,res)=>{
         }
         await placeCart.save();    
         placeCart = await placeCart.populate('places.place','-hotels -attractions');
+        // console.log(placeCart);
         res.json({status:200,placeCart:placeCart});
     }catch(e){
         console.log(e.stack);
         res.json({status:400,message:e.message});
     }
 })
-router.post("/hotels", middleware.isLoggedIn, async (req, res) => {
-    const userId = req.session.passport.user._id;
+router.post("/hotels", async (req, res) => {
+    const userId = req.body.id;
     
     try {
         var { hotelCart } = await helper.getUserCart(undefined, HotelCart, undefined, userId);
@@ -51,7 +52,7 @@ router.post("/hotels", middleware.isLoggedIn, async (req, res) => {
             hotelCart.hotels.push({ hotel: req.body.hotelId, room: req.body.roomId, startDate: new Date(req.body.startDate), endDate: new Date(req.body.endDate),bookedStatus: false });
         }
         await hotelCart.save();
-        // hotelCart = await hotelCart.populate('hotels.hotel',"-image -rooms -reviews").populate("hotels.room",'-hotelId -roomReservations');
+        hotelCart = await hotelCart.populate('hotels.hotel hotels.room',"-image -rooms -reviews");
         res.json({ status: 200, hotelCart:hotelCart });
     } catch (e) {
         console.log(e.stack);
@@ -59,8 +60,9 @@ router.post("/hotels", middleware.isLoggedIn, async (req, res) => {
     }
 })
 
-router.post("/flights", middleware.isLoggedIn, async (req, res) => {
-    const userId = req.session.passport.user._id;
+router.post("/flights", async (req, res) => {
+    console.log(req.body);
+    const userId = req.body.id;
     try {
         var { flightCart } = await helper.getUserCart(undefined, undefined, FlightCart, userId);
         let primaryItinerary = await helper.getPrimaryItinerary(PrimaryItinerary,userId);
@@ -79,8 +81,8 @@ router.post("/flights", middleware.isLoggedIn, async (req, res) => {
         res.json({ status: 400, message: e.message });
     }
 })
-router.post("/comment", middleware.isLoggedIn, async (req, res) => {
-    const userId = req.session.passport.user._id;
+router.post("/comment", async (req, res) => {
+    const userId = req.body.id;
 
     try {
         var itineraryComments ;
@@ -97,14 +99,14 @@ router.post("/comment", middleware.isLoggedIn, async (req, res) => {
 
    
 })
-router.get("/share",middleware.isLoggedIn,async (req,res)=>{
+router.get("/share",async (req,res)=>{
     let shareeEmail = req.query.email;
     console.log(shareeEmail);
     let user = await User.findOne({ email: shareeEmail });
     if(user==null){
         req.status(400).json({status:400,message:`No user found with ${shareeEmail}, please check the provided email and try again`});
     }
-    const primaryItinerary = await PrimaryItinerary.findOne({user:req.session.passport.user._id});
+    const primaryItinerary = await PrimaryItinerary.findOne({user:req.body.id});
     let jwt_token = jwt.sign({primaryItinerary:primaryItinerary._id,shareeEmail:shareeEmail},process.env.JWT_SECRET_TOKEN);
     const mailOptions = {
         from: process.env.ADMIN_EMAIL,
@@ -115,14 +117,14 @@ router.get("/share",middleware.isLoggedIn,async (req,res)=>{
     let info = await transporter.sendMail(mailOptions);
     res.status(200).json({status:200,message:`Your itinerary has been shared with ${shareeEmail}.`});
 })
-router.get("/shared-itinerary",middleware.isLoggedIn,async (req,res)=>{
+router.get("/shared-itinerary",async (req,res)=>{
     const jwt_token = req.query.token;
     try{
         jwt.verify(jwt_token,process.env.JWT_SECRET_TOKEN, async (err,tokenObject)=>{
             if(err){
                 res.status(400).json({status:400,message:err.message});
             }
-            const user = await User.findOne({credId:req.session.passport.user._id});
+            const user = await User.findById(req.params.id);
             if(user.email!==tokenObject.shareeEmail){
                 res.status(400).json({status:400,message:"This itinerary is not meant for you"});
             }
@@ -138,14 +140,14 @@ router.get("/shared-itinerary",middleware.isLoggedIn,async (req,res)=>{
         res.status(400).json({status:400,message:e.message});
     }
 })
-router.delete("/comment/:commentId", middleware.isLoggedIn, async (req, res) => {
-    const userId = req.session.passport.user._id;
+router.delete("/comment/:commentId", async (req, res) => {
+    const userId = req.params.id;
 
     try {
         var deleteComment = await ItineraryComments.findById(req.params.commentId);
         console.log("deleteComment", deleteComment)
         if (userId == deleteComment.author.id) {
-            var primaryItineraryUser = await PrimaryItinerary.findOne({ user: req.session.passport.user._id});
+            var primaryItineraryUser = await PrimaryItinerary.findOne({ user: userId});
             primaryItineraryUser.comments = primaryItineraryUser.comments.filter(comment => comment._id.toString() !== req.params.commentId.toString());
             await primaryItineraryUser.save();
             await ItineraryComments.findByIdAndDelete(req.params.commentId);
@@ -158,16 +160,16 @@ router.delete("/comment/:commentId", middleware.isLoggedIn, async (req, res) => 
 
 
 })
-router.delete("/hotels/:hotelsId", middleware.isLoggedIn, async (req, res) => {
-    const userId = req.session.passport.user._id;
+router.delete("/hotels/:hotelsId", async (req, res) => {
+    const userId = req.query.id;
 
     try {
-        var deletehotel = await HotelCart.findOne({ user: req.session.passport.user._id });
-        if (userId == deletehotel.user) {
-            deletehotel.hotels = deletehotel.hotels.filter(hotel => hotel._id.toString() !== req.params.hotelsId.toString());
-            await deletehotel.save();
-        }
-        res.status(200).json({ status: 200, message: "Your Added hotel has been deleted" })
+        var deletehotel = await HotelCart.findOne({ user: userId });
+        
+        deletehotel.hotels = deletehotel.hotels.filter(hotel => hotel.hotel._id.toString() !== req.params.hotelsId.toString());
+        await deletehotel.save();
+        
+        res.status(200).json({ status: 200, hotelCart:deletehotel})
     } catch (e) {
         console.log(e.stack);
         res.json({ status: 400, message: e.message });
@@ -175,16 +177,18 @@ router.delete("/hotels/:hotelsId", middleware.isLoggedIn, async (req, res) => {
 
 
 })
-router.delete("/places/:placesId", middleware.isLoggedIn, async (req, res) => {
-    const userId = req.session.passport.user._id;
-
+router.delete("/places/:placesId", async (req, res) => {
+    // console.log(req.params);
+    const userId = req.query.id;
+    // console.log(userId);
     try {
-        var deleteplace = await PlaceCart.findOne({ user: req.session.passport.user._id });
+        var deleteplace = await PlaceCart.findOne({ user: userId });
         if (userId == deleteplace.user) {
-            deleteplace.places = deleteplace.places.filter(place => place._id.toString() !== req.params.placesId.toString());
+            deleteplace.places = deleteplace.places.filter(place => place.place.toString() != req.params.placesId);
+            // console.log(deleteplace);
             await deleteplace.save();
         }
-        res.status(200).json({ status: 200, message: "Your Added place has been deleted" })
+        res.status(200).json({ status: 200, placeCart:deleteplace})
     } catch (e) {
         console.log(e.stack);
         res.json({ status: 400, message: e.message });
@@ -192,16 +196,16 @@ router.delete("/places/:placesId", middleware.isLoggedIn, async (req, res) => {
 
 
 })
-router.delete("/flights/:flightsId", middleware.isLoggedIn, async (req, res) => {
-    const userId = req.session.passport.user._id;
+router.delete("/flights/:flightsId", async (req, res) => {
+    const userId = req.params.id;
 
     try {
-        var deleteflights = await FlightCart.findOne({ user: req.session.passport.user._id });
-        if (userId == deleteflights.user) {
-            deleteflights.flights = deleteflights.flights.filter(flight => flight._id.toString() !== req.params.flightsId.toString());
-            await deleteflights.save();
-        }
-        res.status(200).json({ status: 200, message: "Your Added flight has been deleted" })
+        var deleteflights = await FlightCart.findOne({ user: userId });
+        console.log(deleteflights);
+        deleteflights.flights = deleteflights.flights.filter(flight => flight.flight._id.toString() !== req.params.flightsId.toString());
+        await deleteflights.save();
+        
+        res.status(200).json({ status: 200, flightCart:deleteflights});
     } catch (e) {
         console.log(e.stack);
         res.json({ status: 400, message: e.message });

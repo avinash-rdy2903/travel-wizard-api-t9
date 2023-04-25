@@ -19,14 +19,15 @@ const hotel = require('../models/hotel');
 const router = express.Router();
 router.post('/register',async (req,res)=>{
     let creds=null,user=null;
+    // console.log(req.body);
     try{
         let condition = await User.findOne({email:req.body.email});
         if(condition!==null){
             return res.status(400).json({status:400,message:"email already exits"});
         }
         creds = await Credentials.create({username:req.body.username,password:req.body.password});
-        user = await User.create({email:req.body.email,fn:req.body.fn,ln:req.body.ln,verified:false});
-        if(req.body.phone!==undefined){
+        user = await User.create({email:req.body.email,fn:req.body.fn,ln:req.body.ln,securityQuestion:{question:req.body.question,answer:req.body.answer},verified:false});
+        if(req.body.phone!==undefined && req.body.phone.match(/^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/im)){
             let temp = await User.findOne({phone:req.body.phone});
             if(temp==null){
                 user.phone = req.body.phone;
@@ -78,6 +79,7 @@ router.get("/logout",(req,res)=>{
     }
 })
 router.get("/hotels",async (req,res) => {
+    // console.log(req.user);
     let placeId = req.query.placeId,
     start = req.query.start,
     end = req.query.end,
@@ -141,10 +143,10 @@ router.get('/flights',async (req,res)=>{
         res.status(400).json({status:400,message:err.message});
     }
 })
-router.post("/hotels/review/:id",middleware.isLoggedIn,async (req,res)=>{
+router.post("/hotels/review/:id",async (req,res)=>{
     try{
         let hotel = await Hotel.findById(req.params.id);
-        let review = await Review.create({rating:req.body.rating,comment:req.body.comment,author:req.user.username});
+        let review = await Review.create({rating:req.body.rating,comment:req.body.comment,author:req.body.username});
         hotel.reviews.push(review._id);
         let newAvgRating = hotel.avgRating+(review.rating/(hotel.reviews.length || 1));
         hotel.avgRating = newAvgRating;

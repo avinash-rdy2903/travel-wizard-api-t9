@@ -9,8 +9,7 @@ const corsConfig = {
         }
     },
     credentials: true,
-    methods: "GET,POST,PUT,DELETE",
-    allowedHeaders:["Access-Control-Allow-Origin", "Content-Type","Authorization","Set-Cookie"]
+    methods: "GET,POST,PUT,DELETE"
 }
 
 module.exports = cors(corsConfig);
